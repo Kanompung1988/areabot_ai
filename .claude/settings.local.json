@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(docker compose up -d postgres)",
+      "Bash(/Users/king_phuripol/Work/Area-Zero/P-FiveM/areabot/backend/app/routers/admin.py:*)",
+      "Bash(/Users/king_phuripol/Work/Area-Zero/P-FiveM/areabot/backend/app/routers/auth.py:*)",
+      "Bash(/Users/king_phuripol/Work/Area-Zero/P-FiveM/areabot/backend/app/routers/webhook.py:*)",
+      "Bash(/Users/king_phuripol/Work/Area-Zero/P-FiveM/areabot/backend/app/services/openai_service.py:*)",
+      "Bash(/Users/king_phuripol/Work/Area-Zero/P-FiveM/areabot/backend/app/routers/bots.py:*)",
+      "Bash(__NEW_LINE_3a145d3af6a2535d__ echo \"bots.py written\")",
+      "Bash(~/.zshrc)",
+      "Bash(export DOTNET_ROOT=/usr/local/share/dotnet)",
+      "Bash(export PATH=$PATH:/usr/local/share/dotnet:$HOME/.dotnet/tools)",
+      "Bash(dotnet tool install --global cs-script.cli)",
+      "Bash(dotnet tool install --global cs-syntaxer)"
+    ]
+  }
+}

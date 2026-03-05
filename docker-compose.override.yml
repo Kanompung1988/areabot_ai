@@ -1,0 +1,30 @@
+# ──────────────────────────────────────────────────────────────────
+#  Development overrides — auto-loaded by `docker compose up`
+#  For production, run: docker compose -f docker-compose.yml up
+# ──────────────────────────────────────────────────────────────────
+services:
+  backend:
+    volumes:
+      - ./backend:/app # Hot-reload source code
+      - /app/.venv # Keep container venv isolated
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      FRONTEND_URL: http://localhost:3003
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev # Lightweight dev image (npm run dev)
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app # Hot-reload source code
+      - /app/node_modules # Keep container node_modules isolated
+      - /app/.next # Keep build cache isolated
+    ports:
+      - "3003:3002"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_TELEMETRY_DISABLED: "1"
