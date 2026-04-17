@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # ── AI APIs ───────────────────────────────────────────
-    ANTHROPIC_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash-preview-04-17"
     OPENAI_API_KEY: str = ""
 
     # ── Typhoon AI (Thai-optimized LLM — OpenAI-compatible) ──

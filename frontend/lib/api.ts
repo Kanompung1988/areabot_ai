@@ -48,6 +48,9 @@ export const botsApi = {
     api.post(`/api/bots/${id}/regenerate-prompt`),
   regenerateKey: (id: string) => api.post(`/api/bots/${id}/regenerate-key`),
   stats: (id: string) => api.get(`/api/bots/${id}/stats`),
+  testLine: (id: string) => api.post(`/api/bots/${id}/channels/test/line`),
+  testFacebook: (id: string) => api.post(`/api/bots/${id}/channels/test/facebook`),
+  testInstagram: (id: string) => api.post(`/api/bots/${id}/channels/test/instagram`),
 };
 
 // ── Admin ─────────────────────────────────────────────

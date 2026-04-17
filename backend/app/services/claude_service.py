@@ -1,5 +1,5 @@
 import secrets
-import anthropic
+import google.generativeai as genai
 from app.config import get_settings
 
 settings = get_settings()
@@ -22,51 +22,43 @@ _CLINIC_GUARDRAILS = """
 
 
 def _is_clinic_business(business_type: str) -> bool:
-    """ตรวจสอบว่าเป็นธุรกิจคลินิก/ความงามหรือไม่"""
     lower = business_type.lower()
     return any(kw in lower for kw in _CLINIC_KEYWORDS)
 
 
 def inject_runtime_guardrails(system_prompt: str, business_type: str) -> str:
-    """Inject clinic guardrails at request time if not already present.
-
-    Called by webhook/proxy on every request so guardrails are enforced
-    even if the stored system_prompt pre-dates this feature.
-    For non-clinic bots this is a no-op.
-    """
     if not _is_clinic_business(business_type):
         return system_prompt
-    # Avoid duplicating guardrails if already embedded (e.g. from bot creation)
     if "สบส." in system_prompt or "Beauty Consultant" in system_prompt:
         return system_prompt
     return system_prompt + _CLINIC_GUARDRAILS
 
 
 def generate_api_key() -> str:
-    """Generate a unique OpenAI-style API key for the bot."""
     return f"ab-{secrets.token_urlsafe(32)}"
 
 
 async def generate_system_prompt(bot_data: dict) -> str:
     """
-    Use Claude Sonnet 4.6 (Code Writer) to generate a persona-based system prompt.
-    Runs once at bot creation time — expensive model, called once only.
-    For clinic/beauty businesses, adds Thai สบส./อย. compliance guardrails.
+    Use Gemini Flash to generate a persona-based system prompt.
+    Falls back to template if API key missing or any error occurs.
     """
-    if not settings.ANTHROPIC_API_KEY:
+    if not settings.GEMINI_API_KEY:
         return _fallback_system_prompt(bot_data)
 
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    try:
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
 
-    lang = bot_data.get('response_language', 'ไทย')
-    bot_name = bot_data.get('bot_name', 'น้องบอท')
-    personality = bot_data.get('bot_personality', 'ร่าเริง ใจดี พูดจาเป็นกันเอง')
-    business_type = bot_data.get('business_type', '')
-    is_clinic = _is_clinic_business(business_type)
+        lang = bot_data.get('response_language', 'ไทย')
+        bot_name = bot_data.get('bot_name', 'น้องบอท')
+        personality = bot_data.get('bot_personality', 'ร่าเริง ใจดี พูดจาเป็นกันเอง')
+        business_type = bot_data.get('business_type', '')
+        is_clinic = _is_clinic_business(business_type)
 
-    clinic_section = ""
-    if is_clinic:
-        clinic_section = """
+        clinic_section = ""
+        if is_clinic:
+            clinic_section = """
 5. CLINIC COMPLIANCE (บังคับสำหรับธุรกิจคลินิก/ความงาม) — เพิ่มกฎเหล่านี้ในระบบ:
    - บทบาทคือ "ที่ปรึกษาความงาม" ไม่ใช่แพทย์ ห้ามวินิจฉัยโรค
    - ห้ามใช้คำโอ้อวดตามกฎหมาย สบส.: "ดีที่สุด", "เห็นผลทันที", "ปลอดภัย 100%", "การันตีผลลัพธ์"
@@ -75,7 +67,7 @@ async def generate_system_prompt(bot_data: dict) -> str:
    - จบด้วยคำถามปิดการขาย: "สะดวกนัดประเมินผิวกับคุณหมอก่อนไหมคะ?"
 """
 
-    prompt = f"""คุณคือ AI Prompt Engineer ผู้เชี่ยวชาญสร้าง System Prompt สำหรับ AI Chatbot ภาษาไทย
+        prompt = f"""คุณคือ AI Prompt Engineer ผู้เชี่ยวชาญสร้าง System Prompt สำหรับ AI Chatbot ภาษาไทย
 
 สร้าง System Prompt สำหรับ chatbot ธุรกิจต่อไปนี้:
 
@@ -117,25 +109,19 @@ System Prompt ที่ต้องสร้างต้องมีครบท
 {clinic_section}
 ส่ง System Prompt เท่านั้น ไม่ต้องอธิบายเพิ่มเติม"""
 
-    try:
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        result = message.content[0].text
+        response = model.generate_content(prompt)
+        result = response.text
+
+        if is_clinic:
+            result += _CLINIC_GUARDRAILS
+
+        return result
+
     except Exception:
         return _fallback_system_prompt(bot_data)
 
-    # Append runtime guardrails for clinic bots (enforced at every response, not just generation)
-    if is_clinic:
-        result += _CLINIC_GUARDRAILS
-
-    return result
-
 
 def _fallback_system_prompt(bot_data: dict) -> str:
-    """Fallback prompt if Claude API is not configured."""
     lang = bot_data.get('response_language', 'ไทย')
     bot_name = bot_data.get('bot_name', 'น้องบอท')
     company = bot_data.get('company_name', 'บริษัท')

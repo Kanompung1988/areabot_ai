@@ -8,6 +8,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+import httpx
 
 from app.database import get_db
 from app import models, schemas
@@ -255,6 +256,69 @@ def get_widget_code(
     settings = get_settings()
     embed_code = f'<script src="{settings.BACKEND_URL}/widget/embed.js?bot_id={bot.id}"></script>'
     return {"embed_code": embed_code, "bot_id": bot.id, "bot_name": bot.bot_name}
+
+
+@router.post("/{bot_id}/channels/test/line")
+async def test_line_token(
+    bot_id: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Test LINE channel access token by calling LINE Bot Info API."""
+    bot = _get_user_bot(bot_id, current_user.id, db)
+    if not bot.line_channel_access_token:
+        raise HTTPException(status_code=400, detail="ยังไม่ได้ตั้งค่า LINE Access Token")
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://api.line.me/v2/bot/info",
+            headers={"Authorization": f"Bearer {bot.line_channel_access_token}"},
+        )
+    if resp.status_code == 200:
+        info = resp.json()
+        return {"ok": True, "bot_name": info.get("displayName", ""), "message": "เชื่อมต่อ LINE สำเร็จ"}
+    raise HTTPException(status_code=400, detail="LINE Token ไม่ถูกต้องหรือหมดอายุ")
+
+
+@router.post("/{bot_id}/channels/test/facebook")
+async def test_facebook_token(
+    bot_id: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Test Facebook Page Access Token."""
+    bot = _get_user_bot(bot_id, current_user.id, db)
+    if not bot.fb_page_token:
+        raise HTTPException(status_code=400, detail="ยังไม่ได้ตั้งค่า Facebook Page Token")
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://graph.facebook.com/v18.0/me",
+            params={"access_token": bot.fb_page_token, "fields": "name,id"},
+        )
+    if resp.status_code == 200:
+        info = resp.json()
+        return {"ok": True, "page_name": info.get("name", ""), "message": "เชื่อมต่อ Facebook สำเร็จ"}
+    raise HTTPException(status_code=400, detail="Facebook Token ไม่ถูกต้องหรือหมดอายุ")
+
+
+@router.post("/{bot_id}/channels/test/instagram")
+async def test_instagram_token(
+    bot_id: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Test Instagram Access Token."""
+    bot = _get_user_bot(bot_id, current_user.id, db)
+    if not bot.instagram_access_token:
+        raise HTTPException(status_code=400, detail="ยังไม่ได้ตั้งค่า Instagram Access Token")
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://graph.facebook.com/v18.0/me",
+            params={"access_token": bot.instagram_access_token, "fields": "name,id"},
+        )
+    if resp.status_code == 200:
+        info = resp.json()
+        return {"ok": True, "account_name": info.get("name", ""), "message": "เชื่อมต่อ Instagram สำเร็จ"}
+    raise HTTPException(status_code=400, detail="Instagram Token ไม่ถูกต้องหรือหมดอายุ")
 
 
 def _get_user_bot(bot_id: str, user_id: str, db: Session) -> models.Bot:
