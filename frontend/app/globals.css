@@ -658,7 +658,6 @@ textarea.input {
   border-radius: 16px 16px 16px 4px;
   padding: 0.5rem 0.85rem;
   font-size: 0.875rem;
-  max-width: 75%;
   line-height: 1.5;
 }
 .bubble-out {
@@ -667,7 +666,6 @@ textarea.input {
   border-radius: 16px 16px 4px 16px;
   padding: 0.5rem 0.85rem;
   font-size: 0.875rem;
-  max-width: 75%;
   line-height: 1.5;
 }
 
@@ -689,20 +687,75 @@ textarea.input {
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .auth-left {
-    width: 100%;
-    min-width: 0;
-  }
-  .auth-right {
-    display: none;
-  }
-  .inbox-panel,
-  .msg-panel,
-  .detail-panel {
-    display: none;
-  }
+
+/* Utility: show panel on mobile via JS toggle */
+.mobile-visible {
+  display: flex !important;
+  flex-direction: column;
 }
+
+/* Mobile bottom navigation */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 50;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.mobile-bottom-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #9ca3af;
+  font-size: 9px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 12px;
+}
+.mobile-bottom-nav button.active {
+  color: #4f46e5;
+}
+
+/* ── Mobile (<768px) ─── */
+@media (max-width: 767px) {
+  .auth-left { width: 100%; min-width: 0; }
+  .auth-right { display: none; }
+
+  .icon-sidebar { display: none; }
+  .inbox-panel { display: none; width: 100%; min-width: 0; }
+  .msg-panel { display: none; width: 100%; min-width: 0; border-right: none; }
+  .chat-panel { display: none; }
+  .detail-panel { display: none; width: 100%; min-width: 0; }
+
+  /* When mobile-visible is applied, these panels go full-width */
+  .inbox-panel.mobile-visible,
+  .msg-panel.mobile-visible { width: 100%; min-width: 0; flex: 1; }
+  .chat-panel.mobile-visible { display: flex; flex: 1; }
+  .detail-panel.mobile-visible { width: 100%; min-width: 0; flex: 1; }
+
+  /* Add bottom padding for bottom nav */
+  .chat-panel.mobile-visible { padding-bottom: 56px; }
+}
+
+/* ── Tablet (768-1023px) ─── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .icon-sidebar { width: 56px; min-width: 56px; }
+  .inbox-panel { display: none; }
+  .msg-panel { width: 260px; min-width: 260px; }
+  .detail-panel { display: none; }
+}
+
+/* ── Desktop (≥1024px) — default widths in panel classes above ─── */
 
 /* ─── Focus rings ────────────────────────────────────────────────── */
 *:focus-visible {

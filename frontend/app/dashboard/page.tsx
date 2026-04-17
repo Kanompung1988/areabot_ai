@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  ChevronDown, RefreshCw, Search, Paperclip, Sparkles, Send,
+  ChevronDown, ChevronLeft, RefreshCw, Search, Paperclip, Sparkles, Send,
   StickyNote, Bot, Loader2, MessageCircleMore, Star, Users, Tag,
   Pencil, Phone, Calendar, FileText, Wand2, X, Check,
-  Pin, Trash2, MoreHorizontal, Copy,
+  Pin, Trash2, MoreHorizontal, Copy, Info,
   Radio, Clock,
 } from "lucide-react";
 import clsx from "clsx";
@@ -150,6 +150,9 @@ export default function InboxPage() {
 
   /* Right panel tab */
   const [detailTab, setDetailTab] = useState<"info" | "appointments">("info");
+
+  /* Mobile panel switching */
+  const [mobilePanel, setMobilePanel] = useState<"list" | "chat" | "detail">("list");
 
   /* ── Init ── */
   useEffect(() => {
@@ -322,7 +325,7 @@ export default function InboxPage() {
     <div className="flex h-full overflow-hidden bg-white">
 
       {/* ══ Panel 1 — Inbox Nav ══════════════════════════════════════ */}
-      <div className="inbox-panel flex-shrink-0">
+      <div className={clsx("inbox-panel flex-shrink-0 hidden md:flex", mobilePanel === "list" && "mobile-visible")}>
         {/* Bot selector */}
         <div className="px-3 py-2.5 border-b border-gray-100">
           {loadingBots ? (
@@ -454,7 +457,7 @@ export default function InboxPage() {
       </div>
 
       {/* ══ Panel 2 — Message List ══════════════════════════════════ */}
-      <div className="msg-panel flex-shrink-0 flex flex-col">
+      <div className={clsx("msg-panel flex-shrink-0 flex flex-col hidden md:flex", mobilePanel === "list" && "mobile-visible")}>
         <div className="px-3 py-2.5 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-sm text-gray-900">Messages</h3>
@@ -495,7 +498,7 @@ export default function InboxPage() {
                 {searchSuggestions.map((c) => (
                   <button
                     key={c.id}
-                    onMouseDown={() => { setActiveConvoId(c.id); setSearchFocused(false); }}
+                    onMouseDown={() => { setActiveConvoId(c.id); setSearchFocused(false); setMobilePanel("chat"); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
                   >
                     <div className="relative flex-shrink-0">
@@ -536,7 +539,7 @@ export default function InboxPage() {
             filteredConvos.map((c) => {
               const stageColor = getStageColor("มาใหม่");
               return (
-                <div key={c.id} onClick={() => setActiveConvoId(c.id)}
+                <div key={c.id} onClick={() => { setActiveConvoId(c.id); setMobilePanel("chat"); }}
                   className={clsx("convo-item", activeConvoId === c.id && "active")}
                 >
                   <div className="flex items-start gap-2.5">
@@ -579,12 +582,15 @@ export default function InboxPage() {
       </div>
 
       {/* ══ Panel 3 — Chat ══════════════════════════════════════════ */}
-      <div className="chat-panel flex flex-col">
+      <div className={clsx("chat-panel flex flex-col hidden md:flex", mobilePanel === "chat" && "mobile-visible")}>
         {activeConvo ? (
           <>
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-2">
+                <button onClick={() => setMobilePanel("list")} className="md:hidden p-1 rounded hover:bg-gray-100">
+                  <ChevronLeft size={18} />
+                </button>
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-xs font-bold text-white">
                   {getInitials(activeConvo.external_user_name)}
                 </div>
@@ -598,6 +604,7 @@ export default function InboxPage() {
                 )}>{activeConvo.platform}</span>
               </div>
               <div className="flex items-center gap-2">
+                <div className="hidden md:contents">
                 <button onClick={() => setDetailTab("info")} className={clsx("flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors border", detailTab === "info" ? "bg-gray-900 text-white border-gray-900" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 border-gray-200")}>
                   <FileText size={12} /> ข้อมูลลูกค้า
                 </button>
@@ -612,6 +619,10 @@ export default function InboxPage() {
                   )}
                 >
                   {activeConvo.is_handoff ? "🔵 Handoff" : "Handoff"}
+                </button>
+                </div>
+                <button onClick={() => setMobilePanel(mobilePanel === "detail" ? "chat" : "detail")} className="md:hidden p-1.5 rounded-lg hover:bg-gray-100">
+                  <Info size={18} />
                 </button>
               </div>
             </div>
@@ -642,7 +653,7 @@ export default function InboxPage() {
                   return (
                     <div
                       key={m.id}
-                      className={clsx("flex items-end gap-1.5 group py-0.5", isFromUser ? "justify-start" : "justify-end")}
+                      className={clsx("flex items-end gap-1 group py-0.5", isFromUser ? "justify-start" : "justify-end")}
                       onMouseEnter={() => setHoveredMsgId(m.id)}
                       onMouseLeave={() => setHoveredMsgId(null)}
                     >
@@ -834,10 +845,13 @@ export default function InboxPage() {
       </div>
 
       {/* ══ Panel 4 — Detail ════════════════════════════════════════ */}
-      <div className="detail-panel flex flex-col">
+      <div className={clsx("detail-panel flex flex-col hidden lg:flex", mobilePanel === "detail" && "mobile-visible")}>
         {activeConvo ? (
           <>
             <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+              <button onClick={() => setMobilePanel("chat")} className="md:hidden flex items-center gap-1 text-xs text-gray-500 mb-2 hover:text-gray-700">
+                <ChevronLeft size={14} /> กลับ
+              </button>
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-sm font-bold text-white">
                   {getInitials(activeConvo.external_user_name)}

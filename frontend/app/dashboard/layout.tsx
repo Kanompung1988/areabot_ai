@@ -43,8 +43,8 @@ export default function DashboardLayout({
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#f5f5f5]">
-      {/* ── Icon sidebar ── */}
-      <aside className="icon-sidebar flex-shrink-0">
+      {/* ── Icon sidebar (hidden on mobile) ── */}
+      <aside className="icon-sidebar flex-shrink-0 hidden md:flex">
         {/* Logo */}
         <Link href="/dashboard">
           <div className="flex items-center justify-center w-10 h-10 bg-[#1a1a1a] rounded-xl mb-3 hover:opacity-90 transition-opacity cursor-pointer">
@@ -102,7 +102,31 @@ export default function DashboardLayout({
       </aside>
 
       {/* ── Page content ── */}
-      <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+      <div className="flex-1 min-w-0 overflow-y-auto pb-14 md:pb-0">{children}</div>
+
+      {/* ── Mobile bottom nav (visible only on mobile) ── */}
+      <nav className="mobile-bottom-nav md:hidden">
+        {NAV_ICONS.map(({ href, icon: Icon, label }) => {
+          const active =
+            href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname.startsWith(href);
+          return (
+            <Link key={href} href={href}>
+              <button className={clsx(active && "active")} aria-label={label}>
+                <Icon size={20} strokeWidth={1.8} />
+                <span>{label}</span>
+              </button>
+            </Link>
+          );
+        })}
+        <Link href="/dashboard/bots">
+          <button className={clsx(pathname.startsWith("/dashboard/bots") && "active")} aria-label="Settings">
+            <Settings size={20} strokeWidth={1.8} />
+            <span>ตั้งค่า</span>
+          </button>
+        </Link>
+      </nav>
     </div>
   );
 }
