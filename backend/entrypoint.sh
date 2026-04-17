@@ -65,6 +65,12 @@ try:
     cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS rich_content JSONB")
     # conversations table — external_user_name for display
     cur.execute("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS external_user_name VARCHAR(255)")
+    # bots table — migrate old OpenAI model names to Gemini
+    cur.execute("""
+        UPDATE bots SET model_name = 'gemini-2.0-flash'
+        WHERE model_name IN ('gpt-4.1-mini','gpt-4.1','gpt-4o','gpt-4o-mini','gpt-3.5-turbo')
+          OR model_name IS NULL
+    """)
     # knowledge_chunks — migrate from OpenAI 1536-dim to Gemini 768-dim (run once)
     cur.execute("""
         DO $$

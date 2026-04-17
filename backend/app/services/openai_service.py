@@ -41,9 +41,56 @@ AVAILABLE_MODELS = {
     },
 }
 
+# Map legacy OpenAI model names → Gemini equivalents
+_MODEL_ALIAS: dict[str, str] = {
+    "gpt-4.1-mini":     "gemini-2.0-flash",
+    "gpt-4.1":          "gemini-2.0-flash",
+    "gpt-4o":           "gemini-2.0-flash",
+    "gpt-4o-mini":      "gemini-2.0-flash",
+    "gpt-4-turbo":      "gemini-1.5-pro",
+    "gpt-4":            "gemini-1.5-pro",
+    "gpt-3.5-turbo":    "gemini-2.0-flash",
+}
+
+
+def _resolve_model(model: str) -> str:
+    """Convert any OpenAI model name to a valid Gemini model name."""
+    if model in AVAILABLE_MODELS:
+        return model
+    resolved = _MODEL_ALIAS.get(model, DEFAULT_MODEL)
+    logger.info(f"Model '{model}' remapped to '{resolved}'")
+    return resolved
+
 
 def _get_client(api_key: str | None = None) -> genai.Client:
-    return genai.Client(api_key=api_key or settings.GEMINI_API_KEY)
+    key = api_key or settings.GEMINI_API_KEY
+    if not key:
+        raise ValueError("GEMINI_API_KEY is not set. Please add it to Railway environment variables.")
+    return genai.Client(api_key=key)
+
+
+def _build_contents(messages: list[dict]) -> list[types.Content]:
+    """
+    Convert message list to Gemini Contents, ensuring:
+    - Only 'user'/'model' roles (admin/assistant/system → model)
+    - Conversation starts with a 'user' turn
+    - No two consecutive turns with the same role (merge them)
+    """
+    contents: list[types.Content] = []
+    for m in messages:
+        role = "user" if m["role"] == "user" else "model"
+        text = m.get("content") or ""
+        if not text.strip():
+            continue
+        if contents and contents[-1].role == role:
+            # Merge with previous same-role turn
+            contents[-1].parts.append(types.Part(text=text))
+        else:
+            contents.append(types.Content(role=role, parts=[types.Part(text=text)]))
+    # Gemini requires first turn to be 'user'
+    while contents and contents[0].role != "user":
+        contents.pop(0)
+    return contents
 
 
 async def chat_with_openai(
@@ -58,12 +105,9 @@ async def chat_with_openai(
     Gemini chat — same signature as old OpenAI version for drop-in replacement.
     api_key: per-bot Gemini key; ถ้าไม่ระบุใช้ global GEMINI_API_KEY
     """
+    model = _resolve_model(model)
     client = _get_client(api_key)
-
-    contents = []
-    for m in messages:
-        role = "user" if m["role"] == "user" else "model"
-        contents.append(types.Content(role=role, parts=[types.Part(text=m["content"])]))
+    contents = _build_contents(messages)
 
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,
@@ -96,6 +140,7 @@ async def chat_with_openai_vision(
     Gemini Vision — อ่านรูปภาพที่ลูกค้าส่งมา
     """
     import base64 as b64lib
+    model = _resolve_model(model)
     client = _get_client(api_key)
 
     last_text = (
@@ -142,12 +187,9 @@ async def chat_with_openai_stream(
     """
     Gemini streaming — yields SSE-formatted strings.
     """
+    model = _resolve_model(model)
     client = _get_client(api_key)
-
-    contents = []
-    for m in messages:
-        role = "user" if m["role"] == "user" else "model"
-        contents.append(types.Content(role=role, parts=[types.Part(text=m["content"])]))
+    contents = _build_contents(messages)
 
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,

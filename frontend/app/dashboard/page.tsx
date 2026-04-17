@@ -25,10 +25,8 @@ const STAGE_LABELS = [
   { id: "ติดตามผล",  color: "#8b5cf6" },
 ];
 
-const TEAM_MEMBERS = [
-  "Dr.วิชัย", "กนกวรรณ ศ.", "กรวิชญ์ ป.",
-  "ชยพล ว.", "ธนพล ส.", "นภัสสร ก.", "วริษา พ.",
-];
+// TEAM_MEMBERS intentionally empty — team data comes from Bot settings, not hardcoded
+const TEAM_MEMBERS: string[] = [];
 
 const SERVICE_OPTIONS = ["ความงาม", "ผิวหนัง", "เลเซอร์", "ทั่วไป", "อื่นๆ"];
 const STATUS_OPTIONS  = ["มาใหม่", "กำลังคุย", "รอนัด", "นัดแล้ว", "ติดตามผล"];
@@ -149,6 +147,9 @@ export default function InboxPage() {
   const [convoLineId, setConvoLineId]   = useState("");
   const [convoFbUrl, setConvoFbUrl]     = useState("");
   const [convoIgUrl, setConvoIgUrl]     = useState("");
+
+  /* Right panel tab */
+  const [detailTab, setDetailTab] = useState<"info" | "appointments">("info");
 
   /* ── Init ── */
   useEffect(() => {
@@ -372,7 +373,9 @@ export default function InboxPage() {
           </button>
           {teamExpanded && (
             <div className="space-y-0.5">
-              {TEAM_MEMBERS.map((m) => (
+              {TEAM_MEMBERS.length === 0 ? (
+                <p className="text-[11px] text-gray-400 italic px-1 py-1">ยังไม่มีสมาชิก</p>
+              ) : TEAM_MEMBERS.map((m) => (
                 <button
                   key={m}
                   onClick={() => { setActiveTeamMember(m === activeTeamMember ? null : m); setActiveStageFilter(null); }}
@@ -595,10 +598,10 @@ export default function InboxPage() {
                 )}>{activeConvo.platform}</span>
               </div>
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors border border-gray-200">
+                <button onClick={() => setDetailTab("info")} className={clsx("flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors border", detailTab === "info" ? "bg-gray-900 text-white border-gray-900" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 border-gray-200")}>
                   <FileText size={12} /> ข้อมูลลูกค้า
                 </button>
-                <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors border border-gray-200">
+                <button onClick={() => setDetailTab("appointments")} className={clsx("flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors border", detailTab === "appointments" ? "bg-gray-900 text-white border-gray-900" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 border-gray-200")}>
                   <Calendar size={12} /> นัดหมาย
                 </button>
                 <button onClick={handleToggleHandoff}
@@ -710,7 +713,7 @@ export default function InboxPage() {
 
                       {!isFromUser && (
                         <div className={clsx("w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
-                          m.role === "admin" ? "bg-blue-600" : "bg-gray-800"
+                          m.role === "admin" ? "bg-blue-600" : "bg-indigo-600"
                         )}>
                           {m.role === "admin"
                             ? <span className="text-[9px] font-bold text-white">A</span>
@@ -843,7 +846,9 @@ export default function InboxPage() {
                 </div>
               )}
               {!activeConvo.is_handoff && inputMode === "reply" && (
-                <p className="text-xs text-amber-600 mt-1">💡 เปิด Handoff เพื่อตอบด้วยตัวเอง</p>
+                <button onClick={handleToggleHandoff} className="text-xs text-amber-600 hover:text-amber-800 mt-1 flex items-center gap-1 font-medium">
+                  💡 คลิกที่นี่เพื่อเปิด Handoff และส่งข้อความ
+                </button>
               )}
             </div>
           </>
@@ -875,7 +880,20 @@ export default function InboxPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              {/* Tab switcher */}
+              <div className="flex border-b border-gray-100 -mx-4 px-4 mt-3">
+                <button onClick={() => setDetailTab("info")}
+                  className={clsx("tab-item text-xs flex items-center gap-1", detailTab === "info" && "active")}>
+                  <FileText size={11} /> ข้อมูล
+                </button>
+                <button onClick={() => setDetailTab("appointments")}
+                  className={clsx("tab-item text-xs flex items-center gap-1", detailTab === "appointments" && "active")}>
+                  <Calendar size={11} /> นัดหมาย
+                </button>
+              </div>
+
+              {detailTab === "info" && (
+              <div className="space-y-2 mt-3">
                 <PropField label="สถานะ">
                   <select value={convoStage} onChange={(e) => setConvoStage(e.target.value)}
                     className="w-full text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none"
@@ -934,9 +952,11 @@ export default function InboxPage() {
                   </div>
                 </PropField>
               </div>
+              )}
             </div>
 
-            {/* AI Summary */}
+            {/* AI Summary — only in info tab */}
+            {detailTab === "info" && (
             <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-700 flex items-center gap-1">
@@ -959,8 +979,10 @@ export default function InboxPage() {
                 ? <p className="text-xs text-gray-600 leading-relaxed bg-purple-50 rounded-lg px-3 py-2 border border-purple-100">{aiSummary}</p>
                 : <p className="text-xs text-gray-400 italic">กด "สรุป" เพื่อให้ AI วิเคราะห์บทสนทนา</p>}
             </div>
+            )}
 
-            {/* Note */}
+            {/* Note — only in info tab */}
+            {detailTab === "info" && (
             <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-700 flex items-center gap-1">
@@ -987,14 +1009,16 @@ export default function InboxPage() {
                 ? <p className="text-xs text-gray-600 leading-relaxed">{noteText}</p>
                 : <p className="text-xs text-gray-400 italic">ยังไม่มี Note</p>}
             </div>
+            )}
 
-            {/* Appointment History */}
-            <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            {/* Appointment History — only in appointments tab */}
+            {detailTab === "appointments" && (
+            <div className="px-4 py-3 flex-1 overflow-y-auto">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-700 flex items-center gap-1">
                   <Calendar size={12} className="text-blue-500" /> ประวัตินัดหมาย
                 </span>
-                {appointments.length > 3 && (
+                {appointments.length > 0 && (
                   <span className="text-[10px] text-gray-400">{appointments.length} รายการ</span>
                 )}
               </div>
@@ -1002,7 +1026,7 @@ export default function InboxPage() {
                 <p className="text-xs text-gray-400 italic">ยังไม่มีประวัตินัดหมาย</p>
               ) : (
                 <div className="space-y-1.5">
-                  {appointments.slice(0, 3).map((apt) => (
+                  {appointments.map((apt) => (
                     <div key={apt.id} className="flex items-start gap-2 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
                       <div className="flex-shrink-0 mt-0.5">
                         <Clock size={11} className="text-gray-400" />
@@ -1031,8 +1055,10 @@ export default function InboxPage() {
                 </div>
               )}
             </div>
+            )}
 
-            {/* Activity */}
+            {/* Activity — only in info tab */}
+            {detailTab === "info" && (
             <div className="px-4 py-3 flex-1 overflow-y-auto">
               <span className="text-xs font-semibold text-gray-700 flex items-center gap-1 mb-2">
                 <FileText size={12} /> Activity
@@ -1046,6 +1072,7 @@ export default function InboxPage() {
                   time={format(new Date(activeConvo.last_message_at), "HH:mm", { locale: th })} />
               </div>
             </div>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">

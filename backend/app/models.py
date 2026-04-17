@@ -87,8 +87,8 @@ class Bot(Base):
     # API key (OpenAI-compatible)
     api_key = Column(String(100), unique=True, nullable=False, index=True)
 
-    # Multi-model support (#11) — default: gpt-4.1-mini (Chatbot Engine)
-    model_name = Column(String(100), default="gpt-4.1-mini")
+    # Multi-model support (#11) — default: gemini-2.0-flash
+    model_name = Column(String(100), default="gemini-2.0-flash")
 
     # Per-bot OpenAI API key — ถ้าไม่ใส่ จะ fallback ไปใช้ key ใน .env
     openai_api_key = Column(String(255), nullable=True)
