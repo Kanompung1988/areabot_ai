@@ -23,12 +23,6 @@ AVAILABLE_MODELS = {
         "cost_per_1k_tokens": 0.0001,
         "description": "เร็ว ถูก ภาษาไทยดี Vision รองรับ",
     },
-    "gemini-2.5-flash-preview-04-17": {
-        "provider": "gemini",
-        "name": "Gemini 2.5 Flash Preview",
-        "cost_per_1k_tokens": 0.00015,
-        "description": "รุ่นล่าสุด — คิดวิเคราะห์ดีกว่า",
-    },
     "gemini-1.5-flash": {
         "provider": "gemini",
         "name": "Gemini 1.5 Flash",

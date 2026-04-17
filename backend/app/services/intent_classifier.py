@@ -97,7 +97,7 @@ async def classify_intent(user_message: str) -> str:
         from google.genai import types
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
         response = await client.aio.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model="gemini-2.0-flash",  # hardcoded — lightweight task, always use flash
             contents=[_CLASSIFY_PROMPT.format(user_message=user_message)],
             config=types.GenerateContentConfig(
                 system_instruction=_CLASSIFY_SYSTEM,
