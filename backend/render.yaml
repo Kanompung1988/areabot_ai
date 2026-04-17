@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: areabot-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: REDIS_URL
+        value: redis://localhost:6379
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_URL
+        sync: false

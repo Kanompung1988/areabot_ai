@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date, time
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -297,3 +297,111 @@ class ModelInfo(BaseModel):
     provider: str
     cost_per_1k_tokens: float
     description: str
+
+
+# ── Appointments / Calendar ───────────────────────────
+class AppointmentCreate(BaseModel):
+    bot_id: str
+    conversation_id: Optional[str] = None
+    customer_name: str = Field(min_length=1, max_length=255)
+    customer_phone: Optional[str] = None
+    doctor_name: Optional[str] = None
+    service_type: str = Field(min_length=1, max_length=50)
+    treatment: Optional[str] = None
+    appointment_date: date
+    start_time: time
+    end_time: time
+    status: str = "รอยืนยัน"
+    notes: Optional[str] = None
+
+
+class AppointmentUpdate(BaseModel):
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    doctor_name: Optional[str] = None
+    service_type: Optional[str] = None
+    treatment: Optional[str] = None
+    appointment_date: Optional[date] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    conversation_id: Optional[str] = None
+
+
+class AppointmentOut(BaseModel):
+    id: str
+    bot_id: str
+    conversation_id: Optional[str]
+    customer_name: str
+    customer_phone: Optional[str]
+    doctor_name: Optional[str]
+    service_type: str
+    treatment: Optional[str]
+    appointment_date: date
+    start_time: time
+    end_time: time
+    status: str
+    notes: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AppointmentStats(BaseModel):
+    total: int
+    confirmed: int       # ยืนยัน + ยืนยันแล้ว + มาแล้ว
+    consult: int         # รอยืนยัน + จองแล้ว
+    pending: int         # กำลังนัด (รอยืนยัน)
+    cancelled: int       # ยกเลิกนัด
+
+
+# ── Catalog / Store Management ───────────────────────
+class SkuItem(BaseModel):
+    name: str
+    price: Optional[float] = None
+
+
+class CatalogItemCreate(BaseModel):
+    type: str = "service"  # service | package | promotion
+    name: str = Field(min_length=1, max_length=255)
+    description: Optional[str] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    skus: Optional[List[SkuItem]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_active: bool = True
+
+
+class CatalogItemUpdate(BaseModel):
+    type: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    skus: Optional[List[SkuItem]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_active: Optional[bool] = None
+
+
+class CatalogItemOut(BaseModel):
+    id: str
+    bot_id: str
+    type: str
+    name: str
+    description: Optional[str]
+    price: Optional[float]
+    image_url: Optional[str]
+    skus: Optional[str]   # JSON string — parse on frontend
+    start_date: Optional[date]
+    end_date: Optional[date]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

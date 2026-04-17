@@ -11,7 +11,8 @@ from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user
 from app.services.rag_service import (
-    process_document, extract_text_from_pdf, extract_text_from_docx, crawl_url
+    process_document, extract_text_from_pdf, extract_text_from_docx,
+    extract_text_from_yaml, crawl_url
 )
 
 logger = logging.getLogger(__name__)
@@ -62,8 +63,11 @@ async def upload_document(
     elif filename.endswith(".txt"):
         content = file_bytes.decode("utf-8", errors="ignore")
         doc_type = "txt"
+    elif filename.endswith(".yaml") or filename.endswith(".yml"):
+        content = extract_text_from_yaml(file_bytes)
+        doc_type = "faq"
     else:
-        raise HTTPException(400, "Supported formats: PDF, DOCX, TXT")
+        raise HTTPException(400, "Supported formats: PDF, DOCX, TXT, YAML")
 
     if not content.strip():
         raise HTTPException(400, "No text content extracted from file")

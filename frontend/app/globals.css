@@ -343,8 +343,8 @@ textarea.input {
 
 /* ─── Inbox sidebar ──────────────────────────────────────────────── */
 .icon-sidebar {
-  width: 48px;
-  min-width: 48px;
+  width: 72px;
+  min-width: 72px;
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   display: flex;
@@ -354,17 +354,22 @@ textarea.input {
 }
 
 .icon-sidebar-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 56px;
+  height: 52px;
+  border-radius: 12px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
   color: #9ca3af;
   cursor: pointer;
   transition: all 180ms ease;
   border: none;
   background: transparent;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 .icon-sidebar-btn:hover {
   background: #f3f4f6;

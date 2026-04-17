@@ -15,6 +15,9 @@ from app.services.openai_service import (
     chat_with_openai, chat_with_openai_stream, AVAILABLE_MODELS,
 )
 from app.services.rag_service import retrieve_context
+from app.services.intent_classifier import classify_intent
+from app.services.pii_service import mask_pii
+from app.services.claude_service import inject_runtime_guardrails
 
 router = APIRouter(tags=["OpenAI Proxy"])
 
@@ -98,16 +101,21 @@ async def chat_completions(
 
     messages = [{"role": m.role, "content": m.content} for m in req.messages]
 
-    # RAG context injection (#5)
+    # RAG context injection (#5) — skipped for DIRECT intents to save latency/cost
     system_prompt = bot.system_prompt or ""
     last_user_msg = next((m.content for m in reversed(req.messages) if m.role == "user"), "")
     if last_user_msg:
         try:
-            rag_context = await retrieve_context(bot.id, last_user_msg, db)
-            if rag_context:
-                system_prompt += f"\n\nข้อมูลอ้างอิงจากฐานความรู้:\n{rag_context}"
+            intent = await classify_intent(last_user_msg)
+            if intent == "RETRIEVE":
+                rag_context = await retrieve_context(bot.id, last_user_msg, db)
+                if rag_context:
+                    system_prompt += f"\n\nข้อมูลอ้างอิงจากฐานความรู้:\n{rag_context}"
         except Exception:
             pass
+
+    # PII masking — ซ่อนข้อมูลส่วนบุคคลก่อนส่ง LLM (PDPA compliance)
+    messages = [{"role": m.role, "content": mask_pii(m.content)} for m in req.messages]
 
     # Streaming response (#8)
     if req.stream:

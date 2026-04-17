@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    # ── Typhoon AI (Thai-optimized LLM — OpenAI-compatible) ──
+    TYPHOON_API_KEY: str = ""
+    TYPHOON_BASE_URL: str = "https://api.opentyphoon.ai/v1"
+    TYPHOON_MODEL: str = "typhoon-v2.5-30b-a3b-instruct"
+
     # ── Redis ─────────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
 

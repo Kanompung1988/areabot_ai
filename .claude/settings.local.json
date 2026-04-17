@@ -13,7 +13,16 @@
       "Bash(export DOTNET_ROOT=/usr/local/share/dotnet)",
       "Bash(export PATH=$PATH:/usr/local/share/dotnet:$HOME/.dotnet/tools)",
       "Bash(dotnet tool install --global cs-script.cli)",
-      "Bash(dotnet tool install --global cs-syntaxer)"
+      "Bash(dotnet tool install --global cs-syntaxer)",
+      "mcp__b4e07ddb-6b86-46ce-9076-a5fc301eabaa__get_screenshot",
+      "Bash(python3)",
+      "Bash(python -m alembic upgrade head)",
+      "mcp__b4e07ddb-6b86-46ce-9076-a5fc301eabaa__get_design_context",
+      "mcp__b4e07ddb-6b86-46ce-9076-a5fc301eabaa__get_metadata",
+      "mcp__b4e07ddb-6b86-46ce-9076-a5fc301eabaa__use_figma",
+      "Bash(npx tsc:*)",
+      "Bash(python -c \"from app.main import app; from app.routers import catalog; print\\('OK — catalog router loaded'\\)\")",
+      "Bash(python3 -c ':*)"
     ]
   }
 }

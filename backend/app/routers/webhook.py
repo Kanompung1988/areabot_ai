@@ -24,6 +24,9 @@ from app.config import get_settings
 from app.services.openai_service import chat_with_openai, chat_with_openai_vision, DEFAULT_MODEL
 from app.services.rag_service import retrieve_context
 from app.services.redis_service import get_cached_bot_config, cache_bot_config, invalidate_bot_cache
+from app.services.intent_classifier import classify_intent
+from app.services.pii_service import mask_pii
+from app.services.claude_service import inject_runtime_guardrails
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -130,18 +133,29 @@ async def line_webhook(bot_id: str, request: Request, db: Session = Depends(get_
         history.append({"role": "user", "content": user_text})
         db.add(models.Message(conversation_id=convo.id, role="user", content=user_text))
 
-        # RAG context injection (#5)
-        system_prompt = bot.system_prompt or ""
+        # RAG context injection (#5) — skipped for DIRECT intents to save latency/cost
+        system_prompt = inject_runtime_guardrails(
+            bot.system_prompt or "", bot.business_type or ""
+        )
         try:
-            rag_context = await retrieve_context(bot.id, user_text, db)
-            if rag_context:
-                system_prompt += f"\n\nข้อมูลอ้างอิงจากฐานความรู้:\n{rag_context}"
+            intent = await classify_intent(user_text)
+            if intent == "RETRIEVE":
+                rag_context = await retrieve_context(bot.id, user_text, db)
+                if rag_context:
+                    system_prompt += f"\n\nข้อมูลอ้างอิงจากฐานความรู้:\n{rag_context}"
         except Exception as e:
             logger.warning(f"RAG retrieval failed: {e}")
 
+        # PII masking — ซ่อนเบอร์โทร/อีเมลก่อนส่ง LLM (PDPA compliance)
+        safe_history = [
+            {"role": m["role"], "content": mask_pii(m["content"])}
+            for m in history
+        ]
+        safe_history[-1]["content"] = mask_pii(user_text)
+
         reply_text, tokens = await chat_with_openai(
             system_prompt=system_prompt,
-            messages=history,
+            messages=safe_history,
             model=model,
             api_key=bot.openai_api_key,
         )
@@ -334,18 +348,29 @@ async def fb_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
             history.append({"role": "user", "content": user_text})
             db.add(models.Message(conversation_id=convo.id, role="user", content=user_text))
 
-            # RAG context (#5)
-            system_prompt = bot.system_prompt or ""
+            # RAG context (#5) — skipped for DIRECT intents
+            system_prompt = inject_runtime_guardrails(
+                bot.system_prompt or "", bot.business_type or ""
+            )
             try:
-                rag_context = await retrieve_context(bot.id, user_text, db)
-                if rag_context:
-                    system_prompt += f"\n\nข้อมูลอ้างอิงจากฐานความรู้:\n{rag_context}"
+                intent = await classify_intent(user_text)
+                if intent == "RETRIEVE":
+                    rag_context = await retrieve_context(bot.id, user_text, db)
+                    if rag_context:
+                        system_prompt += f"\n\nข้อมูลอ้างอิงจากฐานความรู้:\n{rag_context}"
             except Exception as e:
                 logger.warning(f"RAG retrieval failed: {e}")
 
+            # PII masking (PDPA compliance)
+            safe_history = [
+                {"role": m["role"], "content": mask_pii(m["content"])}
+                for m in history
+            ]
+            safe_history[-1]["content"] = mask_pii(user_text)
+
             reply_text, tokens = await chat_with_openai(
                 system_prompt=system_prompt,
-                messages=history,
+                messages=safe_history,
                 model=model,
             )
 
@@ -494,18 +519,29 @@ async def ig_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
             history.append({"role": "user", "content": user_text})
             db.add(models.Message(conversation_id=convo.id, role="user", content=user_text))
 
-            # RAG context (#5)
-            system_prompt = bot.system_prompt or ""
+            # RAG context (#5) — skipped for DIRECT intents
+            system_prompt = inject_runtime_guardrails(
+                bot.system_prompt or "", bot.business_type or ""
+            )
             try:
-                rag_context = await retrieve_context(bot.id, user_text, db)
-                if rag_context:
-                    system_prompt += f"\n\nข้อมูลอ้างอิงจากฐานความรู้:\n{rag_context}"
+                intent = await classify_intent(user_text)
+                if intent == "RETRIEVE":
+                    rag_context = await retrieve_context(bot.id, user_text, db)
+                    if rag_context:
+                        system_prompt += f"\n\nข้อมูลอ้างอิงจากฐานความรู้:\n{rag_context}"
             except Exception as e:
                 logger.warning(f"RAG retrieval failed: {e}")
 
+            # PII masking (PDPA compliance)
+            safe_history = [
+                {"role": m["role"], "content": mask_pii(m["content"])}
+                for m in history
+            ]
+            safe_history[-1]["content"] = mask_pii(user_text)
+
             reply_text, tokens = await chat_with_openai(
                 system_prompt=system_prompt,
-                messages=history,
+                messages=safe_history,
                 model=model,
                 api_key=bot.openai_api_key,
             )

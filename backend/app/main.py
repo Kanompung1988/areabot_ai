@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from app.database import init_db
 from app.config import get_settings
 from app.routers import auth, bots, proxy, webhook, admin
-from app.routers import knowledge, broadcast, export, widget, billing
+from app.routers import knowledge, broadcast, export, widget, billing, appointments, catalog
 
 settings = get_settings()
 
@@ -103,6 +103,8 @@ app.include_router(knowledge.router, prefix="/api")
 app.include_router(broadcast.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
+app.include_router(appointments.router, prefix="/api")
+app.include_router(catalog.router)
 app.include_router(webhook.router)
 app.include_router(proxy.router)
 app.include_router(widget.router)

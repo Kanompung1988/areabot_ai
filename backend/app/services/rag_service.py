@@ -2,8 +2,10 @@
 RAG (Retrieval-Augmented Generation) service.
 Handles document processing, embedding, and retrieval.
 """
+import io
 import logging
 from typing import Optional
+import yaml
 from openai import AsyncOpenAI
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -137,6 +139,88 @@ def extract_text_from_docx(file_bytes: bytes) -> str:
     import io
     doc = Document(io.BytesIO(file_bytes))
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+
+
+def extract_text_from_yaml(file_bytes: bytes) -> str:
+    """Extract text from YAML knowledge-base files (Tobtan-Clinic-AI format).
+
+    Supported YAML schemas:
+    - pricing.yaml  → entries[].service + entries[].variants[]
+    - services.yaml → entries[].name + entries[].description ...
+    - faq.yaml      → entries[].question + entries[].answer
+    - promotions.yaml → entries[].title + entries[].detail ...
+    - generic        → all key/value pairs flattened
+
+    Returns a single human-readable Thai text string ready for chunking.
+    """
+    try:
+        data = yaml.safe_load(file_bytes.decode("utf-8", errors="ignore"))
+    except yaml.YAMLError as e:
+        logger.warning(f"YAML parse error: {e}")
+        return ""
+
+    if not isinstance(data, dict):
+        return str(data)
+
+    entries = data.get("entries", [])
+    if not entries:
+        # Try top-level list
+        if isinstance(data, list):
+            entries = data
+        else:
+            # Fallback: dump all key-value pairs
+            return "\n".join(f"{k}: {v}" for k, v in data.items())
+
+    # Detect schema type from first entry keys
+    first = entries[0] if entries else {}
+    lines: list[str] = []
+
+    for entry in entries:
+        if "question" in entry and "answer" in entry:
+            # FAQ schema
+            lines.append(f"คำถาม: {entry.get('question', '')}")
+            lines.append(f"คำตอบ: {entry.get('answer', '')}")
+
+        elif "service" in entry and "variants" in entry:
+            # Pricing schema
+            lines.append(f"บริการ: {entry.get('service', '')}")
+            for v in entry.get("variants", []):
+                price = v.get("price_thb", "")
+                note = v.get("note", "")
+                price_str = f"{price:,} บาท" if isinstance(price, int) else f"{price} บาท"
+                vline = f"  - {v.get('name', '')}: {price_str}"
+                if note:
+                    vline += f" ({note})"
+                lines.append(vline)
+
+        elif "title" in entry and ("detail" in entry or "price_thb" in entry):
+            # Promotions schema
+            lines.append(f"โปรโมชั่น: {entry.get('title', '')}")
+            if entry.get("detail"):
+                lines.append(f"รายละเอียด: {entry['detail']}")
+            price = entry.get("price_thb", "")
+            if price:
+                price_str = f"{price:,} บาท" if isinstance(price, int) else f"{price} บาท"
+                lines.append(f"ราคา: {price_str}")
+            if entry.get("valid_until"):
+                lines.append(f"ถึงวันที่: {entry['valid_until']}")
+
+        elif "name" in entry and "description" in entry:
+            # Services schema
+            lines.append(f"บริการ: {entry.get('name', '')}")
+            lines.append(f"รายละเอียด: {entry.get('description', '')}")
+            if entry.get("duration"):
+                lines.append(f"ระยะเวลา: {entry['duration']}")
+            if entry.get("suitable_for"):
+                lines.append(f"เหมาะสำหรับ: {entry['suitable_for']}")
+
+        else:
+            # Generic fallback
+            lines.append("\n".join(f"{k}: {v}" for k, v in entry.items()))
+
+        lines.append("")  # blank separator between entries
+
+    return "\n".join(lines).strip()
 
 
 async def crawl_url(url: str) -> str:

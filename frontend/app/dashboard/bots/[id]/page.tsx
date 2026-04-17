@@ -22,6 +22,7 @@ import {
   Share2,
   Mail,
   Radio,
+  Store,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { botsApi, Bot as BotType } from "@/lib/api";
@@ -144,6 +145,12 @@ export default function BotDetailPage() {
             className="btn btn-ghost text-sm flex items-center gap-2 py-2 px-3"
           >
             <BarChart3 size={15} /> Analytics
+          </Link>
+          <Link
+            href={`/dashboard/bots/${id}/catalog`}
+            className="btn btn-ghost text-sm flex items-center gap-2 py-2 px-3"
+          >
+            <Store size={15} /> Catalog
           </Link>
           <Link
             href={`/dashboard/bots/${id}/knowledge`}

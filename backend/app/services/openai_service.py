@@ -46,6 +46,19 @@ AVAILABLE_MODELS = {
         "cost_per_1k_tokens": 0.0005,
         "description": "ราคาถูกที่สุด เหมาะกับ Q&A พื้นฐาน",
     },
+    # ── Typhoon — Thai-optimized LLM (OpenAI-compatible API) ──
+    "typhoon-v2.5-30b-a3b-instruct": {
+        "provider": "typhoon",
+        "name": "Typhoon v2.5 30B (Thai แนะนำ)",
+        "cost_per_1k_tokens": 0.0002,
+        "description": "Typhoon — ภาษาไทยดีเยี่ยม, ถูกกว่า GPT, เหมาะสำหรับ Thai clinic/beauty bot",
+    },
+    "typhoon-v2-70b-instruct": {
+        "provider": "typhoon",
+        "name": "Typhoon v2 70B",
+        "cost_per_1k_tokens": 0.0004,
+        "description": "Typhoon ขนาดใหญ่ — สำหรับงานซับซ้อนภาษาไทย",
+    },
 }
 
 DEFAULT_MODEL = "gpt-4.1-mini"
@@ -54,6 +67,21 @@ DEFAULT_MODEL = "gpt-4.1-mini"
 def _resolve_key(bot_key: str | None) -> str:
     """ใช้ per-bot key ถ้ามี มิฉะนั้น fallback ไปใช้ global key ใน .env"""
     return bot_key or settings.OPENAI_API_KEY
+
+
+def _get_client(model: str = DEFAULT_MODEL, bot_key: str | None = None) -> AsyncOpenAI:
+    """Return the right AsyncOpenAI-compatible client based on model provider.
+
+    Typhoon uses an OpenAI-compatible API at a different base_url.
+    All other models go to the standard OpenAI API.
+    """
+    provider = AVAILABLE_MODELS.get(model, {}).get("provider", "openai")
+    if provider == "typhoon":
+        return AsyncOpenAI(
+            api_key=settings.TYPHOON_API_KEY or "not-configured",
+            base_url=settings.TYPHOON_BASE_URL,
+        )
+    return AsyncOpenAI(api_key=_resolve_key(bot_key))
 
 
 async def chat_with_openai(
@@ -65,11 +93,12 @@ async def chat_with_openai(
     api_key: str | None = None,
 ) -> tuple[str, int]:
     """
-    Call OpenAI API (Chatbot Engine).
+    Call OpenAI / Typhoon API (Chatbot Engine).
     api_key: per-bot OpenAI key; ถ้าไม่ระบุใช้ global key ใน .env
+    Typhoon models ใช้ TYPHOON_API_KEY อัตโนมัติ
     Returns (response_text, tokens_used).
     """
-    client = AsyncOpenAI(api_key=_resolve_key(api_key))
+    client = _get_client(model, api_key)
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     response = await client.chat.completions.create(
@@ -99,8 +128,12 @@ async def chat_with_openai_vision(
     image_base64: base64-encoded image string
     image_mime: เช่น "image/jpeg", "image/png"
     api_key: per-bot key; ถ้าไม่ระบุใช้ global key
+    หมายเหตุ: Typhoon ไม่รองรับ Vision — fallback ไป GPT-4.1-mini อัตโนมัติ
     """
+    # Typhoon ไม่รองรับ vision — fallback ไป OpenAI
+    vision_model = DEFAULT_MODEL if AVAILABLE_MODELS.get(model, {}).get("provider") == "typhoon" else model
     client = AsyncOpenAI(api_key=_resolve_key(api_key))
+    model = vision_model
 
     # ใช้ history ก่อนหน้า + vision message สุดท้าย
     prior_messages = messages[:-1] if len(messages) > 1 else []
@@ -155,9 +188,10 @@ async def chat_with_openai_stream(
     """
     Stream chat completions using SSE (#8).
     api_key: per-bot key; ถ้าไม่ระบุใช้ global key
+    Typhoon models ใช้ TYPHOON_API_KEY อัตโนมัติ
     Yields Server-Sent Event formatted strings.
     """
-    client = AsyncOpenAI(api_key=_resolve_key(api_key))
+    client = _get_client(model, api_key)
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     stream = await client.chat.completions.create(

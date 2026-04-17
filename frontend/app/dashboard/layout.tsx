@@ -66,6 +66,7 @@ export default function DashboardLayout({
                   aria-label={label}
                 >
                   <Icon size={18} strokeWidth={1.8} />
+                  <span>{label}</span>
                 </button>
               </Link>
             );
@@ -83,6 +84,7 @@ export default function DashboardLayout({
               aria-label="Settings"
             >
               <Settings size={18} strokeWidth={1.8} />
+              <span>ตั้งค่า</span>
             </button>
           </Link>
           <button

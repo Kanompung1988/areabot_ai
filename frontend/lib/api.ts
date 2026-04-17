@@ -105,6 +105,32 @@ export const widgetApi = {
   getCode: (botId: string) => api.get(`/api/bots/${botId}/widget-code`),
 };
 
+// ── Appointments / Calendar ────────────────────────────
+export const appointmentApi = {
+  list: (botId: string, params?: AppointmentListParams) =>
+    api.get("/api/appointments", { params: { bot_id: botId, ...params } }),
+  stats: (botId: string, dateFrom?: string, dateTo?: string) =>
+    api.get("/api/appointments/stats", {
+      params: { bot_id: botId, date_from: dateFrom, date_to: dateTo },
+    }),
+  get: (id: string) => api.get(`/api/appointments/${id}`),
+  create: (data: AppointmentCreatePayload) => api.post("/api/appointments", data),
+  update: (id: string, data: Partial<AppointmentCreatePayload>) =>
+    api.put(`/api/appointments/${id}`, data),
+  delete: (id: string) => api.delete(`/api/appointments/${id}`),
+};
+
+// ── Catalog / Store Management ────────────────────────
+export const catalogApi = {
+  list: (botId: string, params?: { type?: string; search?: string }) =>
+    api.get(`/api/catalog/bots/${botId}/items`, { params }),
+  create: (botId: string, data: CatalogItemPayload) =>
+    api.post(`/api/catalog/bots/${botId}/items`, data),
+  update: (itemId: string, data: Partial<CatalogItemPayload>) =>
+    api.put(`/api/catalog/items/${itemId}`, data),
+  delete: (itemId: string) => api.delete(`/api/catalog/items/${itemId}`),
+};
+
 // ── Export ─────────────────────────────────────────────
 export const exportApi = {
   csv: (botId: string) =>
@@ -249,6 +275,100 @@ export interface AnalyticsData {
   messages_by_platform: Record<string, number>;
   daily_messages: DailyMessageStat[];
   top_questions: { question: string; count: number }[];
+}
+
+// ── Appointment Types ─────────────────────────────────
+export type AppointmentStatus =
+  | "รอยืนยัน"
+  | "ยืนยัน"
+  | "ยืนยันแล้ว"
+  | "มาแล้ว"
+  | "ยกเลิกนัด"
+  | "จองแล้ว";
+
+export type ServiceType = "ความงาม" | "ผิวหนัง" | "เลเซอร์" | "ทั่วไป";
+
+export interface Appointment {
+  id: string;
+  bot_id: string;
+  conversation_id?: string;
+  customer_name: string;
+  customer_phone?: string;
+  doctor_name?: string;
+  service_type: ServiceType;
+  treatment?: string;
+  appointment_date: string; // "YYYY-MM-DD"
+  start_time: string;       // "HH:MM:SS"
+  end_time: string;         // "HH:MM:SS"
+  status: AppointmentStatus;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppointmentCreatePayload {
+  bot_id: string;
+  conversation_id?: string;
+  customer_name: string;
+  customer_phone?: string;
+  doctor_name?: string;
+  service_type: ServiceType;
+  treatment?: string;
+  appointment_date: string;
+  start_time: string;
+  end_time: string;
+  status?: AppointmentStatus;
+  notes?: string;
+}
+
+export interface AppointmentListParams {
+  date_from?: string;
+  date_to?: string;
+  status?: AppointmentStatus;
+}
+
+// ── Catalog Types ─────────────────────────────────────
+export type CatalogItemType = "service" | "package" | "promotion";
+
+export interface SkuItem {
+  name: string;
+  price?: number;
+}
+
+export interface CatalogItemPayload {
+  type: CatalogItemType;
+  name: string;
+  description?: string;
+  price?: number;
+  image_url?: string;
+  skus?: SkuItem[];
+  start_date?: string;
+  end_date?: string;
+  is_active?: boolean;
+}
+
+export interface CatalogItem {
+  id: string;
+  bot_id: string;
+  type: CatalogItemType;
+  name: string;
+  description?: string;
+  price?: number;
+  image_url?: string;
+  skus?: string; // JSON string
+  start_date?: string;
+  end_date?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppointmentStats {
+  total: number;
+  confirmed: number;
+  consult: number;
+  pending: number;
+  cancelled: number;
 }
 
 export default api;

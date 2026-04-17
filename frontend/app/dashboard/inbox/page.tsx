@@ -1,262 +1,244 @@
 "use client";
-import { useState } from "react";
-import { Inbox, Bot, CheckCheck, Circle, Clock, Search } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import {
+  Inbox, RefreshCw, Search, Circle, Bot,
+  MessageCircleMore, Clock, ChevronRight,
+} from "lucide-react";
+import clsx from "clsx";
+import { botsApi, adminApi, Bot as BotType, Conversation } from "@/lib/api";
+import { formatDistanceToNow, format } from "date-fns";
+import { th } from "date-fns/locale";
+import Link from "next/link";
 
-interface Message {
-  id: string;
-  botName: string;
-  sender: string;
-  preview: string;
-  time: string;
-  read: boolean;
-  tag?: string;
+function relativeTime(ts: string) {
+  try { return formatDistanceToNow(new Date(ts), { locale: th, addSuffix: false }); }
+  catch { return "-"; }
 }
 
-const INBOX: Message[] = [
-  {
-    id: "1",
-    botName: "Bot ร้านกาแฟ",
-    sender: "ลูกค้า #1042",
-    preview: "สวัสดีครับ อยากทราบว่าร้านเปิดกี่โมงครับ",
-    time: "5 นาทีที่แล้ว",
-    read: false,
-    tag: "คำถามทั่วไป",
-  },
-  {
-    id: "2",
-    botName: "Bot VIP",
-    sender: "คุณสมชาย",
-    preview: "ขอบคุณมากครับ บอทตอบได้ดีมาก",
-    time: "23 นาทีที่แล้ว",
-    read: false,
-    tag: "ความคิดเห็น",
-  },
-  {
-    id: "3",
-    botName: "Bot ร้านกาแฟ",
-    sender: "ลูกค้า #987",
-    preview: "มีเมนูอะไรบ้างคะ ราคาเท่าไหร่",
-    time: "1 ชั่วโมงที่แล้ว",
-    read: true,
-    tag: "สินค้า",
-  },
-  {
-    id: "4",
-    botName: "Bot ร้านกาแฟ",
-    sender: "ลูกค้า #1100",
-    preview: "ส่งได้ไหมครับ ถึง ลาดพร้าว 71",
-    time: "2 ชั่วโมงที่แล้ว",
-    read: true,
-    tag: "การจัดส่ง",
-  },
-  {
-    id: "5",
-    botName: "Bot VIP",
-    sender: "คุณนิดา",
-    preview: "อยากสั่งซื้อสินค้า 3 ชิ้น มีโปรไหมคะ",
-    time: "3 ชั่วโมงที่แล้ว",
-    read: true,
-  },
-  {
-    id: "6",
-    botName: "Bot ร้านกาแฟ",
-    sender: "ลูกค้า #755",
-    preview: "ชำระเงินด้วย QR Code ได้ไหมคะ",
-    time: "เมื่อวาน",
-    read: true,
-    tag: "การชำระเงิน",
-  },
-];
+function getInitials(name?: string | null) {
+  if (!name) return "?";
+  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+}
 
-const TAG_COLORS: Record<string, string> = {
-  คำถามทั่วไป: "bg-blue-50 text-blue-600",
-  ความคิดเห็น: "bg-green-50 text-green-600",
-  สินค้า: "bg-purple-50 text-purple-600",
-  การจัดส่ง: "bg-orange-50 text-orange-600",
-  การชำระเงิน: "bg-yellow-50 text-yellow-700",
+const PLATFORM_COLORS: Record<string, string> = {
+  line: "bg-green-500",
+  facebook: "bg-blue-600",
+  instagram: "bg-pink-600",
 };
 
 export default function InboxPage() {
-  const [messages, setMessages] = useState(INBOX);
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Message | null>(null);
+  const [bots, setBots]                     = useState<BotType[]>([]);
+  const [selectedBotId, setSelectedBotId]   = useState("");
+  const [loadingBots, setLoadingBots]       = useState(true);
+  const [conversations, setConversations]   = useState<Conversation[]>([]);
+  const [loadingConvos, setLoadingConvos]   = useState(false);
+  const [search, setSearch]                 = useState("");
+  const [filterHandoff, setFilterHandoff]   = useState(false);
 
-  const unread = messages.filter((m) => !m.read).length;
+  /* Load bots */
+  useEffect(() => {
+    botsApi.list()
+      .then((r) => {
+        setBots(r.data);
+        if (r.data.length > 0) setSelectedBotId(r.data[0].id);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingBots(false));
+  }, []);
 
-  const filtered = messages.filter(
-    (m) =>
-      m.sender.toLowerCase().includes(search.toLowerCase()) ||
-      m.preview.toLowerCase().includes(search.toLowerCase()) ||
-      m.botName.toLowerCase().includes(search.toLowerCase()),
-  );
+  /* Load conversations */
+  const loadConvos = useCallback(() => {
+    if (!selectedBotId) return;
+    setLoadingConvos(true);
+    adminApi.conversations(selectedBotId, { limit: 200 })
+      .then((r) => setConversations(r.data))
+      .catch(() => {})
+      .finally(() => setLoadingConvos(false));
+  }, [selectedBotId]);
 
-  const markRead = (id: string) =>
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, read: true } : m)),
-    );
+  useEffect(() => { loadConvos(); }, [loadConvos]);
 
-  const markAllRead = () =>
-    setMessages((prev) => prev.map((m) => ({ ...m, read: true })));
+  /* Filter */
+  const filtered = conversations.filter((c) => {
+    if (filterHandoff && !c.is_handoff) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!(c.external_user_name ?? c.external_user_id ?? "").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const unread = conversations.filter((c) => c.is_handoff).length;
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-gray-900 mb-0.5">
-            Inbox
-          </h1>
-          <p className="text-gray-400 text-sm">
-            {unread > 0 ? `${unread} ข้อความยังไม่ได้อ่าน` : "อ่านทั้งหมดแล้ว"}
-          </p>
+    <div className="flex flex-col h-full bg-[#f5f5f5] overflow-hidden">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-black tracking-tight text-gray-900">Inbox</h1>
+            <p className="text-sm text-gray-400 mt-0.5">
+              {unread > 0
+                ? `${unread} บทสนทนา Handoff รอตอบ`
+                : conversations.length > 0
+                  ? `${conversations.length} บทสนทนาทั้งหมด`
+                  : "ยังไม่มีบทสนทนา"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Bot selector */}
+            {!loadingBots && bots.length > 0 && (
+              <select
+                value={selectedBotId}
+                onChange={(e) => setSelectedBotId(e.target.value)}
+                className="text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-gray-300 cursor-pointer"
+              >
+                {bots.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            )}
+            <button
+              onClick={loadConvos}
+              className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-gray-500"
+            >
+              <RefreshCw size={14} className={loadingConvos ? "animate-spin" : ""} />
+            </button>
+          </div>
         </div>
-        {unread > 0 && (
-          <button
-            onClick={markAllRead}
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors border border-gray-200 rounded-xl px-3 py-1.5 hover:bg-gray-50"
-          >
-            <CheckCheck size={14} /> อ่านทั้งหมด
-          </button>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        {/* Message list */}
-        <div className="lg:col-span-2 space-y-3">
-          {/* Search */}
-          <div className="relative">
-            <Search
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
+        {/* Search + filter */}
+        <div className="flex items-center gap-2 mt-3">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              placeholder="ค้นหา..."
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="input pl-8 h-9 text-sm w-full"
+              placeholder="ค้นหาชื่อลูกค้า..."
+              className="w-full text-sm bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-gray-300"
             />
           </div>
+          <button
+            onClick={() => setFilterHandoff(!filterHandoff)}
+            className={clsx(
+              "text-xs px-3 py-2 rounded-xl border font-medium transition-colors whitespace-nowrap",
+              filterHandoff
+                ? "bg-blue-50 text-blue-700 border-blue-200"
+                : "text-gray-500 border-gray-200 hover:bg-gray-50"
+            )}
+          >
+            🔵 Handoff เท่านั้น
+          </button>
+        </div>
+      </div>
 
-          {filtered.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <Inbox size={28} className="mx-auto mb-2 text-gray-200" />
-              <p className="text-sm">ไม่พบข้อความ</p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filtered.map((msg) => (
-                <button
-                  key={msg.id}
-                  onClick={() => {
-                    setSelected(msg);
-                    markRead(msg.id);
-                  }}
-                  className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
-                    selected?.id === msg.id
-                      ? "border-gray-300 bg-gray-50 shadow-sm"
-                      : "border-transparent hover:border-gray-200 hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {!msg.read && (
-                        <Circle
-                          size={7}
-                          className="fill-blue-500 text-blue-500 flex-shrink-0"
-                        />
-                      )}
-                      <span
-                        className={`text-sm truncate ${msg.read ? "text-gray-600" : "font-bold text-gray-900"}`}
-                      >
-                        {msg.sender}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
-                      <Clock size={10} /> {msg.time}
-                    </span>
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        {loadingBots || loadingConvos ? (
+          <div className="space-y-2">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-gray-100 rounded w-1/3" />
+                    <div className="h-2.5 bg-gray-100 rounded w-2/3" />
                   </div>
-                  <p className="text-xs text-gray-400 truncate mb-1.5">
-                    {msg.preview}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      <Bot size={10} /> {msg.botName}
-                    </span>
-                    {msg.tag && (
-                      <span
-                        className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${TAG_COLORS[msg.tag] ?? "bg-gray-100 text-gray-500"}`}
-                      >
-                        {msg.tag}
-                      </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : bots.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <Bot size={40} className="text-gray-200 mb-3" />
+            <p className="font-semibold text-gray-500 mb-1">ยังไม่มี Bot</p>
+            <p className="text-sm text-gray-400 mb-4">สร้าง Bot ก่อนเพื่อเริ่มรับบทสนทนา</p>
+            <Link href="/dashboard/bots/new" className="btn btn-black btn-sm">
+              + สร้าง Bot
+            </Link>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <Inbox size={36} className="text-gray-200 mb-3" />
+            <p className="font-semibold text-gray-500">
+              {search || filterHandoff ? "ไม่พบบทสนทนา" : "ยังไม่มีบทสนทนา"}
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              {search ? `ไม่พบ "${search}"` : filterHandoff ? "ไม่มีบทสนทนาที่รอ Handoff" : "รอลูกค้าเริ่มต้นการสนทนา"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((c) => (
+              <Link
+                key={c.id}
+                href="/dashboard"
+                className="block bg-white rounded-2xl p-4 border border-transparent hover:border-gray-200 hover:shadow-sm transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-sm font-bold text-white">
+                      {getInitials(c.external_user_name)}
+                    </div>
+                    {/* Platform dot */}
+                    <div className={clsx(
+                      "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white",
+                      PLATFORM_COLORS[c.platform] ?? "bg-gray-400"
+                    )} />
+                    {/* Unread dot */}
+                    {c.is_handoff && (
+                      <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-white" />
                     )}
                   </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Detail panel */}
-        <div className="lg:col-span-3 bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          {selected ? (
-            <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="px-5 py-4 border-b border-gray-100">
-                <div className="flex items-center justify-between mb-0.5">
-                  <p className="font-bold text-gray-900">{selected.sender}</p>
-                  <span className="text-xs text-gray-400">{selected.time}</span>
-                </div>
-                <p className="text-xs text-gray-400 flex items-center gap-1">
-                  <Bot size={11} /> {selected.botName}
-                </p>
-              </div>
-
-              {/* Chat bubble */}
-              <div className="flex-1 p-5 space-y-3 overflow-y-auto">
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[80%]">
-                    <p className="text-sm text-gray-800">{selected.preview}</p>
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <div className="bg-gray-900 rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%]">
-                    <p className="text-sm text-white">
-                      สวัสดีครับ ยินดีช่วยเหลือ! 😊
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={clsx(
+                        "text-sm truncate",
+                        c.is_handoff ? "font-bold text-gray-900" : "font-semibold text-gray-700"
+                      )}>
+                        {c.external_user_name || c.external_user_id || "ผู้ใช้ไม่ระบุ"}
+                      </span>
+                      <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
+                        <Clock size={10} />
+                        {relativeTime(c.last_message_at)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <MessageCircleMore size={11} />
+                        {c.message_count} ข้อความ
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className={clsx(
+                          "text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize",
+                          c.platform === "line" ? "bg-green-50 text-green-700" :
+                          c.platform === "facebook" ? "bg-blue-50 text-blue-700" :
+                          c.platform === "instagram" ? "bg-pink-50 text-pink-700" :
+                          "bg-gray-100 text-gray-500"
+                        )}>
+                          {c.platform}
+                        </span>
+                        {c.is_handoff && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
+                            Handoff
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Last message date */}
+                    <p className="text-[10px] text-gray-300 mt-0.5">
+                      {format(new Date(c.last_message_at), "d MMM yy · HH:mm", { locale: th })}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5 text-right">
-                      Bot
-                    </p>
                   </div>
-                </div>
-              </div>
 
-              {/* Input */}
-              <div className="px-5 py-4 border-t border-gray-100">
-                <div className="flex gap-2">
-                  <input
-                    placeholder="พิมพ์ข้อความ..."
-                    className="input flex-1 h-9 text-sm"
-                    disabled
-                  />
-                  <button
-                    disabled
-                    className="btn btn-black h-9 px-4 text-sm opacity-40 cursor-not-allowed"
-                  >
-                    ส่ง
-                  </button>
+                  <ChevronRight size={14} className="text-gray-300 flex-shrink-0 group-hover:text-gray-400 transition-colors" />
                 </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  การตอบกลับด้วยตนเองจะเปิดใช้งานเร็วๆ นี้
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full py-24 text-center text-gray-400">
-              <Inbox size={36} className="mb-3 text-gray-200" />
-              <p className="font-medium text-gray-500 mb-1">เลือกข้อความ</p>
-              <p className="text-sm">คลิกที่ข้อความทางซ้ายเพื่อดูรายละเอียด</p>
-            </div>
-          )}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

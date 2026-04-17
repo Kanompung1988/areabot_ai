@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date, time
 from sqlalchemy import (
     Column, String, Text, Boolean, DateTime, Integer, Float,
-    ForeignKey, Enum as SAEnum, JSON
+    ForeignKey, Enum as SAEnum, JSON, Date, Time
 )
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
@@ -118,6 +118,8 @@ class Bot(Base):
     conversations = relationship("Conversation", back_populates="bot", cascade="all, delete-orphan")
     knowledge_documents = relationship("KnowledgeDocument", back_populates="bot", cascade="all, delete-orphan")
     broadcast_campaigns = relationship("BroadcastCampaign", back_populates="bot", cascade="all, delete-orphan")
+    appointments = relationship("Appointment", back_populates="bot", cascade="all, delete-orphan")
+    catalog_items = relationship("CatalogItem", back_populates="bot", cascade="all, delete-orphan")
 
 
 # ── Conversation ──────────────────────────────────────
@@ -138,6 +140,7 @@ class Conversation(Base):
 
     bot = relationship("Bot", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    appointments = relationship("Appointment", back_populates="conversation")
 
 
 # ── Message ───────────────────────────────────────────
@@ -227,6 +230,75 @@ class Subscription(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="subscription")
+
+
+# ── Appointment / Calendar ───────────────────────────
+class Appointment(Base):
+    __tablename__ = "appointments"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    bot_id = Column(String(36), ForeignKey("bots.id", ondelete="CASCADE"), nullable=False)
+
+    # Link to chat conversation (optional — สร้างนัดจาก inbox ได้)
+    conversation_id = Column(String(36), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
+
+    # Customer info
+    customer_name = Column(String(255), nullable=False)
+    customer_phone = Column(String(50), nullable=True)
+
+    # Doctor / Staff (string field — ไม่มี Doctor model แยก)
+    doctor_name = Column(String(255), nullable=True)
+
+    # Service
+    service_type = Column(String(50), nullable=False)   # ความงาม / ผิวหนัง / เลเซอร์ / ทั่วไป
+    treatment = Column(String(255), nullable=True)       # โบท็อกซ์, ฟิลเลอร์, เลเซอร์หน้าใส, etc.
+
+    # Schedule
+    appointment_date = Column(Date, nullable=False)
+    start_time = Column(Time, nullable=False)            # 08:00–18:00
+    end_time = Column(Time, nullable=False)
+
+    # Status
+    status = Column(String(50), nullable=False, default="รอยืนยัน")
+    # รอยืนยัน / ยืนยัน / ยืนยันแล้ว / มาแล้ว / ยกเลิกนัด / จองแล้ว
+
+    # Notes
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    bot = relationship("Bot", back_populates="appointments")
+    conversation = relationship("Conversation", back_populates="appointments")
+
+
+# ── Catalog / Store Management ───────────────────────
+class CatalogItem(Base):
+    __tablename__ = "catalog_items"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    bot_id = Column(String(36), ForeignKey("bots.id", ondelete="CASCADE"), nullable=False)
+
+    # service | package | promotion
+    type = Column(String(20), nullable=False, default="service")
+
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    price = Column(Float, nullable=True)
+    image_url = Column(Text, nullable=True)
+
+    # SKU list as JSON string: '[{"name": "ขนาด S", "price": 1200}]'
+    skus = Column(Text, nullable=True)
+
+    # Promotion dates
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    bot = relationship("Bot", back_populates="catalog_items")
 
 
 # ── Password Reset Token (#14) ───────────────────────
