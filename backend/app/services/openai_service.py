@@ -1,9 +1,10 @@
 """
-Gemini service — Chatbot Engine (Gemini Flash)
+Gemini + Typhoon service — Chatbot Engine
 ทดแทน OpenAI ทั้งหมด: chat, vision, streaming
 """
 import json
 import logging
+import httpx
 from typing import AsyncGenerator
 from google import genai
 from google.genai import types
@@ -15,6 +16,7 @@ settings = get_settings()
 DEFAULT_MODEL = "gemini-2.0-flash"
 
 AVAILABLE_MODELS = {
+    # ── Gemini ──────────────────────────────────────────
     "gemini-2.0-flash": {
         "provider": "gemini",
         "name": "Gemini 2.0 Flash (แนะนำ)",
@@ -39,6 +41,31 @@ AVAILABLE_MODELS = {
         "cost_per_1k_tokens": 0.0035,
         "description": "Pro รุ่นใหญ่ — งาน complex",
     },
+    # ── Typhoon (Thai-optimized, OpenAI-compatible) ──────
+    "typhoon-v2.5-30b-a3b-instruct": {
+        "provider": "typhoon",
+        "name": "Typhoon V2.5 30B (แนะนำ — ภาษาไทยดีที่สุด)",
+        "cost_per_1k_tokens": 0.00012,
+        "description": "โมเดลไทยจาก SCB10X เหมาะกับงานคลินิก/ธุรกิจไทย",
+    },
+    "typhoon-v2-70b-instruct": {
+        "provider": "typhoon",
+        "name": "Typhoon V2 70B",
+        "cost_per_1k_tokens": 0.00018,
+        "description": "ขนาดใหญ่ — ตอบละเอียดกว่า",
+    },
+    "typhoon-v2-8b-instruct": {
+        "provider": "typhoon",
+        "name": "Typhoon V2 8B (เร็ว/ถูก)",
+        "cost_per_1k_tokens": 0.00003,
+        "description": "เล็ก เร็ว ราคาถูก",
+    },
+    "typhoon-v2-r1-70b": {
+        "provider": "typhoon",
+        "name": "Typhoon V2 R1 70B (Reasoning)",
+        "cost_per_1k_tokens": 0.0003,
+        "description": "โมเดล reasoning — วิเคราะห์เชิงลึก",
+    },
 }
 
 # Map legacy OpenAI model names → Gemini equivalents
@@ -51,6 +78,8 @@ _MODEL_ALIAS: dict[str, str] = {
     "gpt-4":            "gemini-1.5-pro",
     "gpt-3.5-turbo":    "gemini-2.0-flash",
 }
+
+_TYPHOON_MODELS = {k for k, v in AVAILABLE_MODELS.items() if v["provider"] == "typhoon"}
 
 
 def _resolve_model(model: str) -> str:
@@ -93,6 +122,39 @@ def _build_contents(messages: list[dict]) -> list[types.Content]:
     return contents
 
 
+async def _chat_typhoon(
+    model: str,
+    system_prompt: str,
+    messages: list[dict],
+    max_tokens: int,
+    temperature: float,
+    api_key: str | None,
+) -> tuple[str, int]:
+    """Call Typhoon via OpenAI-compatible REST endpoint."""
+    key = api_key or settings.TYPHOON_API_KEY
+    if not key:
+        raise ValueError("TYPHOON_API_KEY is not set. Please add it to Railway environment variables.")
+    payload = {
+        "model": model,
+        "messages": [{"role": "system", "content": system_prompt}]
+                   + [{"role": m["role"] if m["role"] in ("user", "assistant") else "assistant",
+                        "content": m["content"]} for m in messages],
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(
+            f"{settings.TYPHOON_BASE_URL}/chat/completions",
+            json=payload,
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        )
+        r.raise_for_status()
+        data = r.json()
+    text = data["choices"][0]["message"]["content"] or ""
+    tokens = data.get("usage", {}).get("total_tokens", 0)
+    return text, tokens
+
+
 async def chat_with_openai(
     system_prompt: str,
     messages: list[dict],
@@ -102,10 +164,16 @@ async def chat_with_openai(
     api_key: str | None = None,
 ) -> tuple[str, int]:
     """
-    Gemini chat — same signature as old OpenAI version for drop-in replacement.
-    api_key: per-bot Gemini key; ถ้าไม่ระบุใช้ global GEMINI_API_KEY
+    Universal chat — routes to Gemini or Typhoon based on model name.
+    api_key: per-bot key; ถ้าไม่ระบุใช้ global key ใน .env
     """
     model = _resolve_model(model)
+
+    # ── Typhoon (OpenAI-compatible REST) ──
+    if model in _TYPHOON_MODELS:
+        return await _chat_typhoon(model, system_prompt, messages, max_tokens, temperature, api_key)
+
+    # ── Gemini ──────────────────────────
     client = _get_client(api_key)
     contents = _build_contents(messages)
 

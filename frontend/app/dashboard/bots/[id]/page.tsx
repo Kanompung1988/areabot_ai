@@ -548,12 +548,12 @@ function IntegrationTab({ data, update, botId, backendUrl }: any) {
             </code>
           </div>
         </div>
-        <Field label="OpenAI API Key (per-bot)">
+        <Field label="API Key (Gemini / Typhoon per-bot)">
           <input
             className="input font-mono text-sm"
             value={data.openai_api_key || ""}
             onChange={(e) => update("openai_api_key", e.target.value)}
-            placeholder="sk-... (ถ้าไม่ใส่จะใช้ Global key จาก .env)"
+            placeholder="AIza... (Gemini) หรือ sk-... (Typhoon) — ถ้าว่างใช้ Global key จาก .env"
           />
           <p className="text-xs text-gray-400 mt-1">
             ใส่ key ของลูกค้าเพื่อ track cost แยกต่อ bot
@@ -562,14 +562,21 @@ function IntegrationTab({ data, update, botId, backendUrl }: any) {
         <Field label="AI Model">
           <select
             className="input"
-            value={data.model_name || "gpt-4.1-mini"}
+            value={data.model_name || "gemini-2.0-flash"}
             onChange={(e) => update("model_name", e.target.value)}
           >
-            <option value="gpt-4.1-mini">GPT-4.1 Mini (แนะนำ)</option>
-            <option value="gpt-4.1">GPT-4.1</option>
-            <option value="gpt-4o">GPT-4o</option>
-            <option value="gpt-4o-mini">GPT-4o Mini</option>
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            <optgroup label="🇹🇭 Typhoon (ภาษาไทยดีที่สุด)">
+              <option value="typhoon-v2.5-30b-a3b-instruct">Typhoon V2.5 30B (แนะนำ)</option>
+              <option value="typhoon-v2-70b-instruct">Typhoon V2 70B (ละเอียด)</option>
+              <option value="typhoon-v2-8b-instruct">Typhoon V2 8B (เร็ว/ถูก)</option>
+              <option value="typhoon-v2-r1-70b">Typhoon V2 R1 70B (Reasoning)</option>
+            </optgroup>
+            <optgroup label="✨ Gemini (Google)">
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash (แนะนำ)</option>
+              <option value="gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+            </optgroup>
           </select>
         </Field>
       </div>
