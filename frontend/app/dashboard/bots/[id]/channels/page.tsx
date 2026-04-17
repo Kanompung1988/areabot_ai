@@ -161,7 +161,7 @@ function PlatformCard({
 
           {/* Test button (always show) */}
           <div className="flex items-center justify-between pt-1">
-            <p className="text-xs text-gray-400">บันทึกก่อน แล้วกดทดสอบ</p>
+            <p className="text-xs text-gray-400">กดทดสอบเพื่อตรวจสอบการเชื่อมต่อ (บันทึกอัตโนมัติ)</p>
             <TestBtn state={testState} onClick={onTest} label={testLabel} />
           </div>
         </div>
@@ -236,6 +236,17 @@ export default function ChannelsPage() {
     set: (s: TestState) => void,
     successMsg: (r: any) => string,
   ) => {
+    // Auto-save before testing
+    setSaving(true);
+    try {
+      await botsApi.update(id, data);
+    } catch {
+      toast.error("บันทึกไม่สำเร็จ ไม่สามารถทดสอบได้");
+      setSaving(false);
+      return;
+    } finally {
+      setSaving(false);
+    }
     set("loading");
     try {
       const r = await fn();
