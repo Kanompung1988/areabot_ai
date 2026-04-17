@@ -642,7 +642,7 @@ export default function InboxPage() {
                   return (
                     <div
                       key={m.id}
-                      className={clsx("flex items-end gap-2 group py-1", isFromUser ? "justify-start" : "justify-end")}
+                      className={clsx("flex items-end gap-1.5 group py-0.5", isFromUser ? "justify-start" : "justify-end")}
                       onMouseEnter={() => setHoveredMsgId(m.id)}
                       onMouseLeave={() => setHoveredMsgId(null)}
                     >
@@ -652,63 +652,35 @@ export default function InboxPage() {
                         </div>
                       )}
 
-                      <div className={clsx("flex items-end gap-1.5", isFromUser ? "flex-row" : "flex-row-reverse")}>
-                        {/* Hover action toolbar */}
-                        <div className={clsx(
-                          "flex items-center gap-0.5 transition-opacity",
-                          hoveredMsgId === m.id ? "opacity-100" : "opacity-0 pointer-events-none"
-                        )}>
-                          <button onClick={() => togglePin(m.id)}
-                            title="Pin"
-                            className={clsx("w-6 h-6 rounded-md flex items-center justify-center transition-colors",
-                              isPinned ? "bg-amber-100 text-amber-600" : "hover:bg-gray-100 text-gray-400"
-                            )}
-                          >
-                            <Pin size={11} />
-                          </button>
-                          <button onClick={() => copyMsg(m.content)}
-                            title="คัดลอก"
-                            className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-gray-100 text-gray-400 transition-colors"
-                          >
-                            <Copy size={11} />
-                          </button>
-                          {!isFromUser && (
-                            <button
-                              title="แก้ไข"
-                              className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-gray-100 text-gray-400 transition-colors"
-                            >
-                              <Pencil size={11} />
+                      <div className="relative max-w-[72%]">
+                        {/* Hover toolbar — floats above bubble */}
+                        {hoveredMsgId === m.id && (
+                          <div className={clsx(
+                            "absolute -top-5 z-10 flex items-center gap-0.5 bg-white border border-gray-200 rounded-lg shadow-sm px-1 py-0.5",
+                            isFromUser ? "left-0" : "right-0"
+                          )}>
+                            <button onClick={() => togglePin(m.id)} title="Pin"
+                              className={clsx("w-5 h-5 rounded flex items-center justify-center", isPinned ? "text-amber-500" : "text-gray-400 hover:text-gray-600")}>
+                              <Pin size={10} />
                             </button>
-                          )}
-                          <button
-                            title="ลบ"
-                            className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-red-50 text-gray-400 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                          <button
-                            title="เพิ่มเติม"
-                            className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-gray-100 text-gray-400 transition-colors"
-                          >
-                            <MoreHorizontal size={11} />
-                          </button>
-                        </div>
-
-                        {/* Bubble */}
-                        <div className="max-w-[72%]">
-                          {isPinned && (
-                            <div className={clsx("flex items-center gap-1 mb-0.5 text-[10px] text-amber-500", !isFromUser && "justify-end")}>
-                              <Pin size={9} /> Pinned
-                            </div>
-                          )}
-                          <div className={clsx(isFromUser ? "bubble-in" : "bubble-out", isPinned && "ring-1 ring-amber-300")}>
-                            {m.content}
+                            <button onClick={() => copyMsg(m.content)} title="คัดลอก"
+                              className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-gray-600">
+                              <Copy size={10} />
+                            </button>
                           </div>
-                          <p className={clsx("text-[10px] text-gray-400 mt-0.5", !isFromUser && "text-right")}>
-                            {format(new Date(m.created_at), "HH:mm", { locale: th })}
-                            {!isFromUser && <span className="ml-1 text-gray-300">· {m.role === "admin" ? "Admin" : "AI"}</span>}
-                          </p>
+                        )}
+                        {isPinned && (
+                          <div className={clsx("flex items-center gap-1 mb-0.5 text-[10px] text-amber-500", !isFromUser && "justify-end")}>
+                            <Pin size={9} /> Pinned
+                          </div>
+                        )}
+                        <div className={clsx(isFromUser ? "bubble-in" : "bubble-out", isPinned && "ring-1 ring-amber-300")}>
+                          {m.content}
                         </div>
+                        <p className={clsx("text-[10px] text-gray-400 mt-0.5", !isFromUser && "text-right")}>
+                          {format(new Date(m.created_at), "HH:mm", { locale: th })}
+                          {!isFromUser && <span className="ml-1 text-gray-300">· {m.role === "admin" ? "Admin" : "AI"}</span>}
+                        </p>
                       </div>
 
                       {!isFromUser && (
