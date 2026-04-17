@@ -212,6 +212,28 @@ export default function InboxPage() {
       .then((r) => setConversations(r.data)).catch(() => {});
   }, [selectedBotId]);
 
+  /* Auto-refresh conversations every 15s */
+  useEffect(() => {
+    const t = setInterval(refreshConvos, 15000);
+    return () => clearInterval(t);
+  }, [refreshConvos]);
+
+  /* Auto-refresh active conversation messages every 8s */
+  useEffect(() => {
+    if (!activeConvoId) return;
+    const t = setInterval(() => {
+      adminApi.conversation(activeConvoId)
+        .then((r) => {
+          const data = r.data;
+          setMessages(data.messages ?? []);
+          const updatedConvo: Conversation = data.conversation ?? data;
+          setActiveConvo(updatedConvo);
+        })
+        .catch(() => {});
+    }, 8000);
+    return () => clearInterval(t);
+  }, [activeConvoId]);
+
   /* Filter */
   const filteredConvos = conversations.filter((c) => {
     if (searchQuery) {
