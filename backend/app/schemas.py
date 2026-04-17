@@ -211,6 +211,10 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class AdminReplyBody(BaseModel):
+    content: str
+
+
 class ChatCompletionRequest(BaseModel):
     model: str = "gpt-4.1-mini"
     messages: List[ChatMessage]

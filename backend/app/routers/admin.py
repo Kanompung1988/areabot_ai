@@ -238,7 +238,7 @@ def toggle_handoff(
 @router.post("/conversations/{conversation_id}/reply")
 async def admin_reply(
     conversation_id: str,
-    body: schemas.ChatMessage,
+    body: schemas.AdminReplyBody,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
