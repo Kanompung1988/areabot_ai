@@ -178,6 +178,10 @@ export default function InboxPage() {
         setActiveConvo(convo);
         setMessages(data.messages ?? []);
         setConvoPlatform(convo.platform ?? "LINE");
+        // Populate profile panel from conversation data
+        setConvoLineId(convo.platform === "line" ? (convo.external_user_id ?? "") : "");
+        setConvoFbUrl(convo.platform === "facebook" ? (convo.external_user_id ?? "") : "");
+        setConvoIgUrl(convo.platform === "instagram" ? (convo.external_user_id ?? "") : "");
         setAiSummary(null);
       })
       .catch(() => {})
@@ -212,27 +216,35 @@ export default function InboxPage() {
       .then((r) => setConversations(r.data)).catch(() => {});
   }, [selectedBotId]);
 
-  /* Auto-refresh conversations every 15s */
+  /* Auto-refresh conversations every 8s */
   useEffect(() => {
-    const t = setInterval(refreshConvos, 15000);
+    const t = setInterval(refreshConvos, 8000);
     return () => clearInterval(t);
   }, [refreshConvos]);
 
-  /* Auto-refresh active conversation messages every 8s */
+  /* Real-time active conversation messages every 3s */
   useEffect(() => {
     if (!activeConvoId) return;
+    let lastCount = -1;
     const t = setInterval(() => {
       adminApi.conversation(activeConvoId)
         .then((r) => {
           const data = r.data;
-          setMessages(data.messages ?? []);
+          const newMsgs: Message[] = data.messages ?? [];
+          setMessages((prev) => {
+            if (newMsgs.length !== prev.length) {
+              refreshConvos(); // refresh sidebar counts when messages change
+            }
+            return newMsgs;
+          });
           const updatedConvo: Conversation = data.conversation ?? data;
           setActiveConvo(updatedConvo);
+          lastCount = newMsgs.length;
         })
         .catch(() => {});
-    }, 8000);
+    }, 3000);
     return () => clearInterval(t);
-  }, [activeConvoId]);
+  }, [activeConvoId, refreshConvos]);
 
   /* Filter */
   const filteredConvos = conversations.filter((c) => {
