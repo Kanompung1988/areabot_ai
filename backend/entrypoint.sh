@@ -52,5 +52,25 @@ fi
 echo "→ Running remaining migrations..."
 alembic upgrade head
 
+echo "→ Ensuring all schema columns exist (safe ADD COLUMN IF NOT EXISTS)..."
+python - <<'EOF'
+import os, sys
+sys.path.insert(0, '/app')
+try:
+    import psycopg2
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    cur = conn.cursor()
+    # messages table — rich message columns added in #6
+    cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_type VARCHAR(20) DEFAULT 'text'")
+    cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS rich_content JSONB")
+    # conversations table — external_user_name for display
+    cur.execute("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS external_user_name VARCHAR(255)")
+    conn.commit()
+    conn.close()
+    print("  Schema columns verified.")
+except Exception as e:
+    print(f"  Schema patch skipped: {e}")
+EOF
+
 echo "→ Starting AreaBot API..."
 exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 2
