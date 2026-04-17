@@ -106,8 +106,8 @@ async def _chat_typhoon(
         "model": model,
         "messages": [{"role": "system", "content": system_prompt}]
                    + [{"role": m["role"] if m["role"] in ("user", "assistant") else "assistant",
-                        "content": m["content"]} for m in messages],
-        "max_tokens": max_tokens,
+                        "content": m["content"]} for m in messages if m.get("content", "").strip()],
+        "max_completion_tokens": max_tokens,
         "temperature": temperature,
     }
     async with httpx.AsyncClient(timeout=30) as client:

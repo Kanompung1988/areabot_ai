@@ -316,7 +316,7 @@ async def conversation_summary(
     )
 
     bot = db.query(models.Bot).filter(models.Bot.id == convo.bot_id).first()
-    model = bot.model_name if bot else "typhoon-v2.5-30b-a3b-instruct"
+    model = "gemini-3-flash-preview"  # internal task — always use Gemini
 
     summary_prompt = (
         "สรุปบทสนทนาต่อไปนี้ให้กระชับภายใน 2-3 ประโยค เป็นภาษาไทย "
