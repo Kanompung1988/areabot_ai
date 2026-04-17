@@ -70,7 +70,10 @@ async def line_webhook(bot_id: str, request: Request, db: Session = Depends(get_
         reply_token = event["replyToken"]
         source = event.get("source", {})
         line_user_id = source.get("userId", "unknown")
-        convo = _get_or_create_convo(bot.id, models.PlatformEnum.LINE, line_user_id, db)
+        display_name = None
+        if bot.line_channel_access_token:
+            display_name = await _fetch_line_display_name(line_user_id, bot.line_channel_access_token)
+        convo = _get_or_create_convo(bot.id, models.PlatformEnum.LINE, line_user_id, db, display_name)
         model = bot.model_name or DEFAULT_MODEL
 
         # ── รูปภาพ (Vision) ──────────────────────────────
@@ -297,8 +300,6 @@ async def fb_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
                 convo = _get_or_create_convo(
                     bot.id, models.PlatformEnum.FACEBOOK, sender_id, db
                 )
-                try:
-                    image_base64, image_mime = await _download_image_from_url(image_url)
                     history = _get_history(convo.id, db)
                     db.add(models.Message(
                         conversation_id=convo.id, role="user", content="[ส่งรูปภาพ]"
@@ -332,8 +333,11 @@ async def fb_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
                 continue
 
             user_text = msg["text"]
+            fb_display_name = None
+            if bot.fb_page_token:
+                fb_display_name = await _fetch_fb_display_name(sender_id, bot.fb_page_token)
             convo = _get_or_create_convo(
-                bot.id, models.PlatformEnum.FACEBOOK, sender_id, db
+                bot.id, models.PlatformEnum.FACEBOOK, sender_id, db, fb_display_name
             )
 
             # Human handoff check (#9)
@@ -530,6 +534,7 @@ async def ig_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
             history = _get_history(convo.id, db)
             history.append({"role": "user", "content": user_text})
             db.add(models.Message(conversation_id=convo.id, role="user", content=user_text))
+            db.commit()  # commit user message immediately — never lose it
 
             # RAG context (#5) — skipped for DIRECT intents
             system_prompt = inject_runtime_guardrails(
@@ -551,12 +556,17 @@ async def ig_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
             ]
             safe_history[-1]["content"] = mask_pii(user_text)
 
-            reply_text, tokens = await chat_with_openai(
-                system_prompt=system_prompt,
-                messages=safe_history,
-                model=model,
-                api_key=bot.openai_api_key,
-            )
+            try:
+                reply_text, tokens = await chat_with_openai(
+                    system_prompt=system_prompt,
+                    messages=safe_history,
+                    model=model,
+                    api_key=bot.openai_api_key,
+                )
+            except Exception as e:
+                logger.error(f"OpenAI call failed (IG): {e}")
+                reply_text = "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งนะคะ"
+                tokens = 0
 
             db.add(models.Message(
                 conversation_id=convo.id, role="assistant",
@@ -638,7 +648,8 @@ async def _fb_send_buttons(page_token: str, recipient_id: str, text: str, rich_c
 
 # ── Helpers ───────────────────────────────────────────
 def _get_or_create_convo(
-    bot_id: str, platform: models.PlatformEnum, external_user_id: str, db: Session
+    bot_id: str, platform: models.PlatformEnum, external_user_id: str, db: Session,
+    display_name: str | None = None,
 ) -> models.Conversation:
     convo = db.query(models.Conversation).filter(
         models.Conversation.bot_id == bot_id,
@@ -647,16 +658,51 @@ def _get_or_create_convo(
     ).first()
     if not convo:
         convo = models.Conversation(
-            bot_id=bot_id, platform=platform, external_user_id=external_user_id
+            bot_id=bot_id, platform=platform, external_user_id=external_user_id,
+            external_user_name=display_name,
         )
         db.add(convo)
         db.flush()
         db.query(models.Bot).filter(models.Bot.id == bot_id).update(
             {"total_conversations": models.Bot.total_conversations + 1}
         )
+    elif display_name and not convo.external_user_name:
+        convo.external_user_name = display_name
     convo.last_message_at = datetime.utcnow()
     db.commit()
     return convo
+
+
+async def _fetch_line_display_name(user_id: str, token: str) -> str | None:
+    """Fetch LINE user display name via Profile API."""
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f"https://api.line.me/v2/bot/profile/{user_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5,
+            )
+            if r.status_code == 200:
+                return r.json().get("displayName")
+    except Exception:
+        pass
+    return None
+
+
+async def _fetch_fb_display_name(user_id: str, page_token: str) -> str | None:
+    """Fetch Facebook user name via Graph API."""
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f"https://graph.facebook.com/v18.0/{user_id}",
+                params={"fields": "name", "access_token": page_token},
+                timeout=5,
+            )
+            if r.status_code == 200:
+                return r.json().get("name")
+    except Exception:
+        pass
+    return None
 
 
 def _get_history(convo_id: str, db: Session, limit: int = 10) -> list[dict]:

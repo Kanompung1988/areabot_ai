@@ -58,6 +58,12 @@ export default function InboxPage() {
 
   useEffect(() => { loadConvos(); }, [loadConvos]);
 
+  /* Auto-refresh every 15s */
+  useEffect(() => {
+    const t = setInterval(loadConvos, 15000);
+    return () => clearInterval(t);
+  }, [loadConvos]);
+
   /* Filter */
   const filtered = conversations.filter((c) => {
     if (filterHandoff && !c.is_handoff) return false;
@@ -171,7 +177,7 @@ export default function InboxPage() {
             {filtered.map((c) => (
               <Link
                 key={c.id}
-                href="/dashboard"
+                href={`/dashboard/inbox/${c.id}`}
                 className="block bg-white rounded-2xl p-4 border border-transparent hover:border-gray-200 hover:shadow-sm transition-all group"
               >
                 <div className="flex items-center gap-3">
