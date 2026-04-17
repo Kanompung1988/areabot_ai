@@ -19,10 +19,10 @@ def upgrade() -> None:
     # Ensure pgvector is enabled (idempotent)
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
-    # Drop text placeholder, add native vector(1536) column
-    op.drop_column("knowledge_chunks", "embedding")
+    # Drop text placeholder if exists, add native vector(1536) column
+    op.execute("ALTER TABLE knowledge_chunks DROP COLUMN IF EXISTS embedding")
     op.execute(
-        "ALTER TABLE knowledge_chunks ADD COLUMN embedding vector(1536)"
+        "ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS embedding vector(1536)"
     )
 
     # HNSW index for fast approximate nearest-neighbour search (cosine)
