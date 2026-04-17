@@ -114,7 +114,7 @@ export default function BotDetailPage() {
   if (!bot)
     return <div className="text-center py-20 text-gray-500">ไม่พบ Bot</div>;
 
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").trim();
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in px-6 py-6">

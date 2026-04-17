@@ -200,7 +200,7 @@ export default function ChannelsPage() {
     instagram_verify_token: "",
   });
 
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").trim();
 
   useEffect(() => {
     botsApi.get(id).then((r) => {
