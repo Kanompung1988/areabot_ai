@@ -132,6 +132,7 @@ async def line_webhook(bot_id: str, request: Request, db: Session = Depends(get_
         history = _get_history(convo.id, db)
         history.append({"role": "user", "content": user_text})
         db.add(models.Message(conversation_id=convo.id, role="user", content=user_text))
+        db.commit()  # commit user message immediately — never lose it
 
         # RAG context injection (#5) — skipped for DIRECT intents to save latency/cost
         system_prompt = inject_runtime_guardrails(
@@ -153,12 +154,17 @@ async def line_webhook(bot_id: str, request: Request, db: Session = Depends(get_
         ]
         safe_history[-1]["content"] = mask_pii(user_text)
 
-        reply_text, tokens = await chat_with_openai(
-            system_prompt=system_prompt,
-            messages=safe_history,
-            model=model,
-            api_key=bot.openai_api_key,
-        )
+        try:
+            reply_text, tokens = await chat_with_openai(
+                system_prompt=system_prompt,
+                messages=safe_history,
+                model=model,
+                api_key=bot.openai_api_key,
+            )
+        except Exception as e:
+            logger.error(f"OpenAI call failed: {e}")
+            reply_text = "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งนะคะ"
+            tokens = 0
 
         # Rich message detection (#6)
         rich_content = _detect_rich_content(reply_text)
@@ -347,6 +353,7 @@ async def fb_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
             history = _get_history(convo.id, db)
             history.append({"role": "user", "content": user_text})
             db.add(models.Message(conversation_id=convo.id, role="user", content=user_text))
+            db.commit()  # commit user message immediately
 
             # RAG context (#5) — skipped for DIRECT intents
             system_prompt = inject_runtime_guardrails(
@@ -368,11 +375,16 @@ async def fb_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
             ]
             safe_history[-1]["content"] = mask_pii(user_text)
 
-            reply_text, tokens = await chat_with_openai(
-                system_prompt=system_prompt,
-                messages=safe_history,
-                model=model,
-            )
+            try:
+                reply_text, tokens = await chat_with_openai(
+                    system_prompt=system_prompt,
+                    messages=safe_history,
+                    model=model,
+                )
+            except Exception as e:
+                logger.error(f"OpenAI call failed (FB): {e}")
+                reply_text = "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งนะคะ"
+                tokens = 0
 
             rich_content = _detect_rich_content(reply_text)
 
