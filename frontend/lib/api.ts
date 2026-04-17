@@ -71,6 +71,8 @@ export const adminApi = {
     }),
   adminReply: (conversationId: string, content: string) =>
     api.post(`/api/admin/conversations/${conversationId}/reply`, { content }),
+  summarize: (conversationId: string) =>
+    api.post(`/api/admin/conversations/${conversationId}/summary`),
 };
 
 // ── Knowledge Base ─────────────────────────────────────

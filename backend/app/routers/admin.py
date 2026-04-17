@@ -3,7 +3,10 @@ Admin & analytics endpoints.
 #3 - Fixed N+1 query using subquery for message counts.
 #12 - Added time-series analytics and top questions.
 """
+import logging
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -279,3 +282,58 @@ async def admin_reply(
             )
 
     return {"status": "sent", "message_id": msg.id}
+
+
+# ── AI Summary ────────────────────────────────────────
+@router.post("/conversations/{conversation_id}/summary")
+async def conversation_summary(
+    conversation_id: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Use AI to summarize a conversation."""
+    from app.services.openai_service import chat_with_openai
+
+    convo = db.query(models.Conversation).filter(
+        models.Conversation.id == conversation_id
+    ).first()
+    if not convo:
+        raise HTTPException(404, "Conversation not found")
+
+    msgs = (
+        db.query(models.Message)
+        .filter(models.Message.conversation_id == conversation_id)
+        .order_by(models.Message.created_at.asc())
+        .limit(50)
+        .all()
+    )
+    if not msgs:
+        return {"summary": "ยังไม่มีข้อความในบทสนทนานี้"}
+
+    chat_log = "\n".join(
+        f"{'ลูกค้า' if m.role == 'user' else 'บอท/แอดมิน'}: {m.content}"
+        for m in msgs
+    )
+
+    bot = db.query(models.Bot).filter(models.Bot.id == convo.bot_id).first()
+    model = bot.model_name if bot else "typhoon-v2.5-30b-a3b-instruct"
+
+    summary_prompt = (
+        "สรุปบทสนทนาต่อไปนี้ให้กระชับภายใน 2-3 ประโยค เป็นภาษาไทย "
+        "ระบุสิ่งที่ลูกค้าสนใจ ปัญหาที่พบ และสถานะปัจจุบัน:\n\n"
+        f"{chat_log}"
+    )
+
+    try:
+        text, _ = await chat_with_openai(
+            system_prompt="คุณเป็นผู้ช่วยสรุปบทสนทนา ตอบเป็นภาษาไทยกระชับ",
+            messages=[{"role": "user", "content": summary_prompt}],
+            model=model,
+            max_tokens=300,
+            temperature=0.3,
+            api_key=bot.openai_api_key if bot else None,
+        )
+        return {"summary": text}
+    except Exception as e:
+        logger.error(f"AI Summary failed: {e}")
+        return {"summary": f"ไม่สามารถสรุปได้: {e}"}

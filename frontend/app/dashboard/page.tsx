@@ -935,12 +935,17 @@ export default function InboxPage() {
                   <Sparkles size={12} className="text-purple-500" /> AI Summary
                 </span>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    if (!activeConvoId) return;
                     setLoadingSummary(true);
-                    setTimeout(() => {
-                      setAiSummary(`ลูกค้าสนใจบริการ${convoService} มีการสอบถามข้อมูลและราคา บทสนทนา ${activeConvo.message_count} ข้อความ`);
+                    try {
+                      const res = await adminApi.summarize(activeConvoId);
+                      setAiSummary(res.data.summary);
+                    } catch {
+                      setAiSummary("ไม่สามารถสรุปได้ กรุณาลองใหม่");
+                    } finally {
                       setLoadingSummary(false);
-                    }, 1200);
+                    }
                   }}
                   className="text-xs btn btn-black btn-sm gap-1 py-1 px-2.5"
                 >
