@@ -16,9 +16,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Ensure pgvector is enabled (idempotent)
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-
     # Drop text placeholder if exists, add native vector(1536) column
     op.execute("ALTER TABLE knowledge_chunks DROP COLUMN IF EXISTS embedding")
     op.execute(
