@@ -17,23 +17,11 @@ DEFAULT_MODEL = "typhoon-v2.5-30b-a3b-instruct"
 
 AVAILABLE_MODELS = {
     # ── Gemini ──────────────────────────────────────────
-    "gemini-2.0-flash": {
+    "gemini-3-flash-preview": {
         "provider": "gemini",
-        "name": "Gemini 2.0 Flash (แนะนำ)",
+        "name": "Gemini 3 Flash Preview",
         "cost_per_1k_tokens": 0.0001,
-        "description": "เร็ว ถูก ภาษาไทยดี Vision รองรับ",
-    },
-    "gemini-1.5-flash": {
-        "provider": "gemini",
-        "name": "Gemini 1.5 Flash",
-        "cost_per_1k_tokens": 0.000075,
-        "description": "รุ่นเก่า — ถูกมาก",
-    },
-    "gemini-1.5-pro": {
-        "provider": "gemini",
-        "name": "Gemini 1.5 Pro",
-        "cost_per_1k_tokens": 0.0035,
-        "description": "Pro รุ่นใหญ่ — งาน complex",
+        "description": "รุ่นล่าสุด เร็ว ภาษาไทยดี Vision รองรับ",
     },
     # ── Typhoon (Thai-optimized, OpenAI-compatible) ──────
     "typhoon-v2.5-30b-a3b-instruct": {
@@ -44,15 +32,19 @@ AVAILABLE_MODELS = {
     },
 }
 
-# Map legacy OpenAI model names → Gemini equivalents
+# Map legacy model names → current defaults
 _MODEL_ALIAS: dict[str, str] = {
-    "gpt-4.1-mini":     "gemini-2.0-flash",
-    "gpt-4.1":          "gemini-2.0-flash",
-    "gpt-4o":           "gemini-2.0-flash",
-    "gpt-4o-mini":      "gemini-2.0-flash",
-    "gpt-4-turbo":      "gemini-1.5-pro",
-    "gpt-4":            "gemini-1.5-pro",
-    "gpt-3.5-turbo":    "gemini-2.0-flash",
+    "gpt-4.1-mini":     "typhoon-v2.5-30b-a3b-instruct",
+    "gpt-4.1":          "typhoon-v2.5-30b-a3b-instruct",
+    "gpt-4o":           "typhoon-v2.5-30b-a3b-instruct",
+    "gpt-4o-mini":      "typhoon-v2.5-30b-a3b-instruct",
+    "gpt-4-turbo":      "typhoon-v2.5-30b-a3b-instruct",
+    "gpt-4":            "typhoon-v2.5-30b-a3b-instruct",
+    "gpt-3.5-turbo":    "typhoon-v2.5-30b-a3b-instruct",
+    "gemini-2.0-flash":             "gemini-3-flash-preview",
+    "gemini-2.5-flash-preview-04-17": "gemini-3-flash-preview",
+    "gemini-1.5-flash":             "gemini-3-flash-preview",
+    "gemini-1.5-pro":               "gemini-3-flash-preview",
 }
 
 _TYPHOON_MODELS = {k for k, v in AVAILABLE_MODELS.items() if v["provider"] == "typhoon"}

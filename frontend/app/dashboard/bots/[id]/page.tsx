@@ -569,9 +569,7 @@ function IntegrationTab({ data, update, botId, backendUrl }: any) {
               <option value="typhoon-v2.5-30b-a3b-instruct">Typhoon V2.5 30B (แนะนำ)</option>
             </optgroup>
             <optgroup label="✨ Gemini (Google)">
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-              <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+              <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
             </optgroup>
           </select>
         </Field>
