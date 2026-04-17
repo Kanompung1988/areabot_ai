@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type MutableRefObject } from "react";
 import {
   ChevronDown, ChevronLeft, RefreshCw, Search, Paperclip, Sparkles, Send,
   StickyNote, Bot, Loader2, MessageCircleMore, Star, Users, Tag,
@@ -113,6 +113,7 @@ export default function InboxPage() {
   const [inputMode, setInputMode] = useState<"reply" | "note">("reply");
   const [sending, setSending]     = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMsgCount = useRef(0);
 
   /* Message hover actions */
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
@@ -158,7 +159,7 @@ export default function InboxPage() {
   useEffect(() => {
     botsApi.list()
       .then((r) => { setBots(r.data); if (r.data.length > 0) setSelectedBotId(r.data[0].id); })
-      .catch(() => {})
+      .catch((e) => console.error(e))
       .finally(() => setLoadingBots(false));
   }, []);
 
@@ -168,7 +169,7 @@ export default function InboxPage() {
     setConversations([]); setActiveConvoId(""); setActiveConvo(null); setMessages([]);
     adminApi.conversations(selectedBotId, { limit: 100 })
       .then((r) => { setConversations(r.data); if (r.data.length > 0) setActiveConvoId(r.data[0].id); })
-      .catch(() => {})
+      .catch((e) => console.error(e))
       .finally(() => setLoadingConvos(false));
   }, [selectedBotId]);
 
@@ -188,11 +189,16 @@ export default function InboxPage() {
         setConvoIgUrl(convo.platform === "instagram" ? (convo.external_user_id ?? "") : "");
         setAiSummary(null);
       })
-      .catch(() => {})
+      .catch((e) => console.error(e))
       .finally(() => setLoadingMsgs(false));
   }, [activeConvoId]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    if (messages.length > prevMsgCount.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevMsgCount.current = messages.length;
+  }, [messages]);
 
   /* Fetch appointments */
   useEffect(() => {
@@ -217,7 +223,7 @@ export default function InboxPage() {
   const refreshConvos = useCallback(() => {
     if (!selectedBotId) return;
     adminApi.conversations(selectedBotId, { limit: 100 })
-      .then((r) => setConversations(r.data)).catch(() => {});
+      .then((r) => setConversations(r.data)).catch((e) => console.error(e));
   }, [selectedBotId]);
 
   /* Auto-refresh conversations every 8s */
@@ -229,26 +235,22 @@ export default function InboxPage() {
   /* Real-time active conversation messages every 3s */
   useEffect(() => {
     if (!activeConvoId) return;
-    let lastCount = -1;
     const t = setInterval(() => {
       adminApi.conversation(activeConvoId)
         .then((r) => {
           const data = r.data;
           const newMsgs: Message[] = data.messages ?? [];
-          setMessages((prev) => {
-            if (newMsgs.length !== prev.length) {
-              refreshConvos(); // refresh sidebar counts when messages change
-            }
-            return newMsgs;
-          });
+          if (newMsgs.length !== messages.length) {
+            setMessages(newMsgs);
+            refreshConvos();
+          }
           const updatedConvo: Conversation = data.conversation ?? data;
           setActiveConvo(updatedConvo);
-          lastCount = newMsgs.length;
         })
-        .catch(() => {});
+        .catch((e) => console.error(e));
     }, 3000);
     return () => clearInterval(t);
-  }, [activeConvoId, refreshConvos]);
+  }, [activeConvoId, refreshConvos, messages.length]);
 
   /* Filter */
   const filteredConvos = conversations.filter((c) => {
@@ -295,10 +297,14 @@ export default function InboxPage() {
 
   const handleToggleHandoff = async () => {
     if (!activeConvo) return;
-    await adminApi.toggleHandoff(activeConvoId, !activeConvo.is_handoff);
-    const r = await adminApi.conversation(activeConvoId);
-    const data = r.data;
-    setActiveConvo(data.conversation ?? data);
+    try {
+      await adminApi.toggleHandoff(activeConvoId, !activeConvo.is_handoff);
+      const r = await adminApi.conversation(activeConvoId);
+      const data = r.data;
+      setActiveConvo(data.conversation ?? data);
+    } catch {
+      toast.error("Handoff สลับไม่สำเร็จ");
+    }
   };
 
   /* Pin message */
@@ -313,7 +319,7 @@ export default function InboxPage() {
 
   /* Copy message */
   const copyMsg = (content: string) => {
-    navigator.clipboard.writeText(content).then(() => toast.success("คัดลอกแล้ว"));
+    navigator.clipboard.writeText(content).then(() => toast.success("คัดลอกแล้ว")).catch((e) => console.error(e));
   };
 
   /* Use template */
@@ -826,7 +832,7 @@ export default function InboxPage() {
                     className="btn btn-black btn-sm gap-1.5 self-end disabled:opacity-40"
                   >
                     {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                    Sent
+                    ส่ง
                   </button>
                 </div>
               )}

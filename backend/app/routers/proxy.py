@@ -90,20 +90,19 @@ async def chat_completions(
 
     convo = _get_or_create_conversation(bot.id, platform, external_user_id, db)
 
-    # Save user messages
-    for msg in req.messages:
-        if msg.role == "user":
-            db.add(models.Message(
-                conversation_id=convo.id,
-                role="user",
-                content=msg.content,
-            ))
-
     messages = [{"role": m.role, "content": m.content} for m in req.messages]
+    last_user_msg = next((m.content for m in reversed(req.messages) if m.role == "user"), "")
+
+    # Save only the last user message (not all history messages)
+    if last_user_msg:
+        db.add(models.Message(
+            conversation_id=convo.id,
+            role="user",
+            content=last_user_msg,
+        ))
 
     # RAG context injection (#5) — skipped for DIRECT intents to save latency/cost
     system_prompt = bot.system_prompt or ""
-    last_user_msg = next((m.content for m in reversed(req.messages) if m.role == "user"), "")
     if last_user_msg:
         try:
             intent = await classify_intent(last_user_msg)
@@ -120,6 +119,7 @@ async def chat_completions(
     # Streaming response (#8)
     if req.stream:
         async def stream_generator():
+            accumulated_text = []
             async for chunk in chat_with_openai_stream(
                 system_prompt=system_prompt,
                 messages=messages,
@@ -128,7 +128,35 @@ async def chat_completions(
                 temperature=req.temperature or 0.7,
                 api_key=bot_openai_key,
             ):
+                # Extract content from SSE chunk for accumulation
+                if chunk.startswith("data: ") and chunk.strip() not in ("data: [DONE]",):
+                    try:
+                        chunk_data = json.loads(chunk[6:])
+                        delta_content = (
+                            chunk_data.get("choices", [{}])[0]
+                            .get("delta", {})
+                            .get("content", "")
+                        )
+                        if delta_content:
+                            accumulated_text.append(delta_content)
+                    except (json.JSONDecodeError, IndexError):
+                        pass
                 yield chunk
+
+            # Save accumulated assistant response after streaming completes
+            full_response = "".join(accumulated_text)
+            if full_response:
+                db.add(models.Message(
+                    conversation_id=convo.id,
+                    role="assistant",
+                    content=full_response,
+                    tokens_used=0,
+                    model_used=model,
+                ))
+                db.query(models.Bot).filter(models.Bot.id == bot.id).update(
+                    {"total_messages": models.Bot.total_messages + 2}
+                )
+                db.commit()
 
         return StreamingResponse(
             stream_generator(),

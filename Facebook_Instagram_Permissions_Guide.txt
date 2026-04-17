@@ -1,0 +1,738 @@
+================================================================================
+    [INTERNAL] TobTan Team Only
+    คู่มือการตั้งค่า Facebook & Instagram OAuth
+    สำหรับ AreaBot AI SaaS Platform
+================================================================================
+
+*** เอกสารนี้เป็น Internal Guide สำหรับทีม TobTan เท่านั้น ***
+*** User ของ TobTan ไม่ต้องทำตาม docs นี้ ***
+*** User แค่กดปุ่ม "เชื่อมต่อ Facebook" → Login → เลือก Page → เสร็จ ***
+
+================================================================================
+สารบัญ
+================================================================================
+1. ใครทำอะไร — TobTan vs User
+2. สิ่งที่ต้องเตรียมก่อนเริ่ม
+3. ขั้นตอนสร้าง Facebook App (Meta ปัจจุบัน)
+4. Permissions ที่ต้องขอ — Facebook Messenger
+5. Permissions ที่ต้องขอ — Instagram
+6. Standard Access vs Advanced Access
+7. Business Verification — เอกสารที่ต้องใช้
+8. App Review — สิ่งที่ต้องเตรียม
+9. Privacy Policy & Data Deletion
+10. OAuth Flow ที่ต้องพัฒนา (Technical)
+11. Token Management
+12. Webhook Configuration
+13. Data Use Checkup (ทำทุกปี)
+14. Checklist สรุป
+15. Timeline
+
+
+================================================================================
+1. ใครทำอะไร — TobTan (ทำครั้งเดียว) vs User (ทำทุกครั้ง)
+================================================================================
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  TobTan Team ทำ (ครั้งเดียว)              ทำโดย: Dev Team / Admin   │
+├──────────────────────────────────────────────────────────────────────┤
+│  • สร้าง Facebook App บน Meta for Developers                       │
+│  • ยื่น Business Verification (เอกสารบริษัท)                        │
+│  • พัฒนา OAuth flow (backend + frontend)                            │
+│  • ยื่น App Review ขอ permissions                                   │
+│  • เตรียม Privacy Policy + Data Deletion endpoint                   │
+│  • ถ่าย Screencast video สำหรับ review                             │
+│  • ทำ Data Use Checkup ทุกปี                                        │
+│  • ดูแล/renew tokens, monitor API changes                           │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  User ของ TobTan ทำ (ง่ายมาก)            ใช้เวลา: ~30 วินาที      │
+├──────────────────────────────────────────────────────────────────────┤
+│  1. เข้า Dashboard → Bot Settings → Channels → Facebook             │
+│  2. กดปุ่ม "เชื่อมต่อ Facebook Page"                                │
+│  3. Login Facebook ของตัวเอง (ถ้ายังไม่ได้ login)                   │
+│  4. Facebook ถาม permissions → กด "Continue"                        │
+│  5. เลือก Facebook Page ที่ต้องการเชื่อมต่อ                         │
+│  6. เสร็จ ✓ บอทพร้อมใช้งานทันที                                    │
+│                                                                      │
+│  สำหรับ Instagram:                                                   │
+│  1. กดปุ่ม "เชื่อมต่อ Instagram"                                    │
+│  2. Login Facebook (IG ต้องเชื่อมผ่าน FB Page)                      │
+│  3. เลือก Page ที่เชื่อมกับ IG Business Account                     │
+│  4. เสร็จ ✓                                                         │
+│                                                                      │
+│  *** User ไม่ต้องสร้าง App, ไม่ต้องขอ permission, ไม่ต้องมี key ** │
+└──────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+2. สิ่งที่ต้องเตรียมก่อนเริ่ม
+================================================================================
+
+[ ] Meta for Developers Account → developers.facebook.com
+    (ใช้ Facebook Account ของ Admin ทีม TobTan)
+
+[ ] Meta Business Suite Account → business.facebook.com
+    (ใช้ชื่อบริษัท TobTan หรือ AreaZero AI)
+
+[ ] เอกสารบริษัทสำหรับ Business Verification (ดูหัวข้อ 7)
+
+[ ] Privacy Policy URL → https://tobtanai.areazeroai.com/privacy
+    (ต้องมีก่อนสร้าง App)
+
+[ ] Terms of Service URL → https://tobtanai.areazeroai.com/terms
+
+[ ] App Icon ขนาด 1024x1024 px
+
+[ ] Domain ที่ verify แล้ว (areazeroai.com)
+
+[ ] SSL/HTTPS (มีอยู่แล้วผ่าน Vercel + Railway)
+
+[ ] Facebook Page สำหรับทดสอบ (สร้างไว้สำหรับ review)
+
+[ ] Instagram Business Account สำหรับทดสอบ
+    (เชื่อมกับ Facebook Page แล้ว)
+
+
+================================================================================
+3. ขั้นตอนสร้าง Facebook App
+================================================================================
+
+*** หมายเหตุ: Meta เปลี่ยนระบบแล้ว ***
+*** ไม่มี App Type "Business" อีกต่อไป ***
+*** ใช้ระบบ "Use Case" แทน ***
+
+3.1 ไปที่ developers.facebook.com → "My Apps" → "Create App"
+
+3.2 เลือก Use Cases (เลือกได้หลายอัน):
+    ✅ Messenger Platform → สำหรับรับ/ส่งข้อความ Messenger
+    ✅ Instagram Messaging → สำหรับรับ/ส่ง DM Instagram
+    (หรือสร้าง App เปล่าก่อนแล้วเพิ่มทีหลังก็ได้)
+
+    *** Use Case เพิ่มได้แต่ลบไม่ได้ ระวังเลือกผิด ***
+
+3.3 กรอกข้อมูล:
+    - App Name: "AreaBot AI" หรือ "TobTan AI"
+    - Contact Email: dev@areazeroai.com
+    - Business Portfolio: เลือก TobTan business account
+
+3.4 ตั้งค่า Facebook Login (หรือ Facebook Login for Business):
+    - Valid OAuth Redirect URIs:
+      https://tobtanai.areazeroai.com/api/auth/facebook/callback
+      https://areabotai-production.up.railway.app/api/auth/facebook/callback
+
+    - Deauthorize Callback URL:
+      https://areabotai-production.up.railway.app/api/auth/facebook/deauthorize
+
+    - Data Deletion Request URL:
+      https://areabotai-production.up.railway.app/api/auth/facebook/data-deletion
+
+3.5 Graph API Version: ใช้ v25.0 (ล่าสุด ณ 2026)
+    *** อย่าใช้ v19.0 หรือต่ำกว่า — เก่าเกินไป ***
+
+
+================================================================================
+4. Permissions ที่ต้องขอ — Facebook Messenger
+================================================================================
+
+┌─────────────────────────────┬──────────┬─────────────────────────────────┐
+│ Permission                  │ Access   │ ใช้ทำอะไร                        │
+├─────────────────────────────┼──────────┼─────────────────────────────────┤
+│ pages_show_list             │ Advanced │ แสดงรายชื่อ Page ให้ User       │
+│                             │          │ เลือกตอน OAuth                   │
+│                             │          │ (dependency ของทุก permission)  │
+├─────────────────────────────┼──────────┼─────────────────────────────────┤
+│ pages_messaging             │ Advanced │ ส่ง/รับข้อความผ่าน Messenger    │
+│                             │          │ ★ สำคัญที่สุด                    │
+│                             │          │ ต้องมี pages_manage_metadata    │
+│                             │          │ + pages_show_list ก่อน          │
+├─────────────────────────────┼──────────┼─────────────────────────────────┤
+│ pages_manage_metadata       │ Advanced │ Subscribe webhook กับ Page      │
+│                             │          │ ต้องมี pages_show_list ก่อน    │
+├─────────────────────────────┼──────────┼─────────────────────────────────┤
+│ pages_read_engagement       │ Advanced │ อ่านข้อมูล Page                │
+│                             │          │ (dependency ของ IG permissions) │
+└─────────────────────────────┴──────────┴─────────────────────────────────┘
+
+ลำดับ dependency:
+  pages_show_list → pages_manage_metadata → pages_messaging
+                  → pages_read_engagement → instagram_*
+
+
+================================================================================
+5. Permissions ที่ต้องขอ — Instagram
+================================================================================
+
+มี 2 เส้นทาง (เลือกอันใดอันหนึ่ง หรือทำทั้งคู่):
+
+─── เส้นทาง A: ผ่าน Messenger Platform (แนะนำ) ───
+    IG Account ต้องเชื่อมกับ Facebook Page
+
+┌──────────────────────────────┬──────────┬────────────────────────────────┐
+│ Permission                   │ Access   │ ใช้ทำอะไร                       │
+├──────────────────────────────┼──────────┼────────────────────────────────┤
+│ instagram_basic              │ Advanced │ อ่านข้อมูล IG account          │
+├──────────────────────────────┼──────────┼────────────────────────────────┤
+│ instagram_manage_messages    │ Advanced │ ส่ง/รับ DM Instagram           │
+│                              │          │ ★ สำคัญที่สุดสำหรับ IG        │
+│                              │          │ ต้องมี instagram_basic         │
+│                              │          │ + pages_read_engagement        │
+│                              │          │ + pages_show_list              │
+└──────────────────────────────┴──────────┴────────────────────────────────┘
+
+─── เส้นทาง B: ผ่าน Instagram API with Instagram Login (ใหม่) ───
+    IG Account ไม่ต้องเชื่อมกับ Facebook Page
+
+┌────────────────────────────────────────┬──────────┬──────────────────────┐
+│ Permission                             │ Access   │ หมายเหตุ              │
+├────────────────────────────────────────┼──────────┼──────────────────────┤
+│ instagram_business_manage_messages     │ Advanced │ ใช้แทน scope เก่า    │
+│                                        │          │ business_manage_     │
+│                                        │          │ messages ที่ deprec  │
+│                                        │          │ ated ม.ค. 2025       │
+└────────────────────────────────────────┴──────────┴──────────────────────┘
+
+*** แนะนำเส้นทาง A ก่อน เพราะทำ FB + IG ได้ในครั้งเดียว ***
+*** เส้นทาง B เหมาะสำหรับ IG-only ที่ไม่มี FB Page ***
+
+
+================================================================================
+6. Standard Access vs Advanced Access — อธิบายให้ชัด
+================================================================================
+
+┌─────────────────┬───────────────────────────────────────────────────────┐
+│ Standard Access │ • ได้อัตโนมัติทุก permission                         │
+│                 │ • แต่ใช้ได้เฉพาะคนที่มี Role ใน App เท่านั้น        │
+│                 │   (Admin, Developer, Tester ที่เพิ่มใน App Dashboard) │
+│                 │ • ไม่ต้อง App Review                                  │
+│                 │ • เหมาะสำหรับ: ทดสอบตอน Development                   │
+│                 │                                                       │
+│                 │ *** User ทั่วไปของ TobTan ใช้ไม่ได้! ***             │
+├─────────────────┼───────────────────────────────────────────────────────┤
+│ Advanced Access │ • ทุกคนสามารถ authorize ได้ (รวมถึง User ของ TobTan) │
+│                 │ • ต้อง Business Verification ✓                        │
+│                 │ • ต้อง App Review ✓                                   │
+│                 │ • เหมาะสำหรับ: Production / SaaS ที่เปิดให้คนทั่วไป │
+│                 │                                                       │
+│                 │ *** ต้องมีอันนี้ก่อนเปิดให้ User ใช้ ***             │
+└─────────────────┴───────────────────────────────────────────────────────┘
+
+สรุป: TobTan ต้องได้ Advanced Access สำหรับ ทุก permission ในหัวข้อ 4-5
+      ก่อนที่ User คนไหนจะสามารถกดเชื่อมต่อได้
+
+
+================================================================================
+7. Business Verification — เอกสารที่ต้องใช้
+================================================================================
+
+ยื่นที่: Meta Business Suite → Settings → Business Verification
+หรือ:   App Dashboard → Settings → Basic → Verification
+
+เอกสารที่ยอมรับ (เลือกอย่างน้อย 1 ชุด):
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  ก) หนังสือรับรองบริษัท / ใบจดทะเบียนนิติบุคคล (DBD)              │
+│     + ใบทะเบียนภาษีมูลค่าเพิ่ม (ภพ.20) หรือ เลขประจำตัวผู้เสียภาษี│
+│                                                                      │
+│  ข) ใบจดทะเบียนพาณิชย์ (ทะเบียนการค้า)                             │
+│                                                                      │
+│  ค) Bank Statement ที่มีชื่อบริษัท (ไม่เก่ากว่า 12 เดือน)         │
+│                                                                      │
+│  ง) ใบเสร็จค่าสาธารณูปโภค ที่มีชื่อ+ที่อยู่บริษัท                 │
+│     (ไม่เก่ากว่า 12 เดือน)                                          │
+│                                                                      │
+│  จ) ใบอนุญาตประกอบธุรกิจ (Business License)                         │
+└──────────────────────────────────────────────────────────────────────┘
+
+*** สำคัญ: ***
+• ชื่อในเอกสารต้องตรงกับชื่อใน Meta Business Suite ทุกตัวอักษร
+• ที่อยู่ต้องตรงกัน
+• เอกสารต้องไม่เก่ากว่า 12 เดือน
+• ใช้เวลาตรวจสอบ: 1-5 วันทำการ (บางกรณีนานกว่า)
+
+สำหรับบุคคลธรรมดา/Freelance:
+• บัตรประชาชน + ทะเบียนการค้า
+• หรือ หนังสือรับรองจากหน่วยงานราชการ
+
+
+================================================================================
+8. App Review — สิ่งที่ต้องเตรียมสำหรับแต่ละ Permission
+================================================================================
+
+ยื่นที่: App Dashboard → App Review → Requests
+
+*** ต้องยื่น App Review แยกสำหรับ ทุก Advanced Permission ***
+*** แนะนำยื่นทีเดียวหมดทุก permission ***
+
+สำหรับ ทุก permission ต้องเตรียม:
+
+────────────────────────────────────────
+A) Screencast Video (สำคัญที่สุด!)
+────────────────────────────────────────
+   • ถ่ายหน้าจอแสดงว่า TobTan ใช้ permission ทำอะไร
+   • ต้องแสดง: Facebook Login flow → permission dialog → การใช้งานจริง
+   • ความยาว 1-3 นาที ต่อ permission
+   • เครื่องมือแนะนำ: Loom, OBS, หรือ QuickTime
+   • พูดอธิบายเป็นภาษาอังกฤษ (หรือใส่ English subtitle)
+   • Upload: YouTube (Unlisted) หรือ Google Drive (public link)
+
+   ตัวอย่าง script สำหรับ pages_messaging:
+   ──────────────────────────────────────
+   "Hi, this is the AreaBot AI platform. I'll show you how we use
+   pages_messaging permission.
+
+   [แสดง Dashboard] Our platform lets business owners connect their
+   Facebook Pages to automate customer service with an AI chatbot.
+
+   [กด Connect Facebook] When a user clicks 'Connect Facebook Page',
+   they see the Facebook Login dialog.
+
+   [แสดง Login + Permission dialog] The user authorizes our app
+   to access their Pages and messaging.
+
+   [เลือก Page] They select which Page to connect.
+
+   [ส่งข้อความทดสอบ] Now when a customer sends a message to the
+   Page on Messenger, our AI chatbot automatically responds.
+
+   [แสดง Dashboard inbox] The business owner can also view all
+   conversations and manually reply through our CRM dashboard.
+
+   That's how we use pages_messaging. Thank you."
+
+────────────────────────────────────────
+B) คำอธิบายการใช้งาน (ภาษาอังกฤษ)
+────────────────────────────────────────
+   ตัวอย่างสำหรับ pages_messaging:
+
+   "AreaBot AI is a SaaS chatbot platform that helps Thai businesses
+   automate customer service on Facebook Messenger.
+
+   When a business owner connects their Facebook Page through our
+   OAuth flow, we subscribe to the page's messaging webhook.
+   When a customer sends a message to the Page, our AI chatbot
+   automatically responds with relevant information about the
+   business's products and services.
+
+   Business owners can also manually respond to customers through
+   our CRM dashboard using the Human Handoff feature.
+
+   We need pages_messaging to:
+   1. Receive incoming messages from customers via webhook
+   2. Send automated AI responses back to customers
+   3. Allow business owners to send manual replies via our CRM
+   4. Support media messages and quick replies"
+
+────────────────────────────────────────
+C) Test Account + Test Page
+────────────────────────────────────────
+   • สร้าง Test User ใน App Dashboard → Roles → Test Users
+   • หรือสร้าง Facebook Account จริงสำหรับ review
+   • สร้าง Test Facebook Page
+   • สร้าง Test Instagram Business Account (เชื่อมกับ Test Page)
+   • เตรียม login credentials:
+     - Email: testreviewer@tobtan.com
+     - Password: (สร้างรหัสผ่านที่ปลอดภัย)
+   • เตรียม TobTan Dashboard test account:
+     - Email: reviewer@tobtan.com
+     - Password: (สร้างรหัสผ่านที่ปลอดภัย)
+
+   *** ตรวจสอบว่า test account ใช้งานได้จริงก่อนยื่น ***
+
+────────────────────────────────────────
+D) Step-by-step Instructions สำหรับ Reviewer (ภาษาอังกฤษ)
+────────────────────────────────────────
+   "1. Go to https://tobtanai.areazeroai.com
+    2. Log in with: reviewer@tobtan.com / [password]
+    3. Click 'Create Bot' → fill in business name 'Test Clinic'
+    4. Go to Bot Settings → Channels → Facebook
+    5. Click 'Connect Facebook Page'
+    6. Log in with: testreviewer@tobtan.com / [password]
+    7. Select page 'TobTan Test Page'
+    8. System shows 'Connected successfully ✓'
+    9. Open Messenger → search for 'TobTan Test Page'
+    10. Send message: 'Hello, what services do you offer?'
+    11. Bot responds automatically within 3 seconds
+    12. Go back to TobTan Dashboard → Inbox
+    13. See the conversation and AI response
+    14. Click 'Handoff' → type a manual reply → click Send
+    15. Message appears in Messenger"
+
+
+================================================================================
+9. Privacy Policy & Data Deletion (จำเป็น)
+================================================================================
+
+────────────────────────────────────────
+9.1 Privacy Policy
+────────────────────────────────────────
+
+URL: https://tobtanai.areazeroai.com/privacy
+
+ต้องครอบคลุมหัวข้อเหล่านี้:
+
+[ ] ข้อมูลที่เก็บจาก Facebook/Instagram:
+    - ชื่อ Facebook, profile picture
+    - Page information (name, ID)
+    - Messages ที่ส่ง/รับผ่าน Messenger/IG DM
+    - Instagram Business Account info
+
+[ ] วัตถุประสงค์:
+    - ให้บริการ AI Chatbot อัตโนมัติ
+    - แสดงข้อความใน CRM Dashboard
+    - วิเคราะห์และสรุปบทสนทนา
+
+[ ] การแชร์ข้อมูล:
+    - ส่งข้อความไปยัง AI Provider (Typhoon/Gemini) เพื่อประมวลผล
+    - ไม่ขายข้อมูลให้ third party
+
+[ ] การเก็บรักษา:
+    - เก็บข้อมูลตลอดระยะเวลาใช้บริการ
+    - ลบภายใน 30 วันหลังยกเลิกบริการ
+
+[ ] สิทธิ์ของผู้ใช้:
+    - ขอดูข้อมูล, แก้ไข, ลบได้
+    - ติดต่อ: privacy@areazeroai.com
+
+[ ] PDPA Compliance (พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล)
+
+[ ] เขียนเป็นภาษาอังกฤษ (แนะนำ: ไทย + อังกฤษ)
+
+────────────────────────────────────────
+9.2 Data Deletion Endpoint (Meta บังคับ)
+────────────────────────────────────────
+
+URL: https://areabotai-production.up.railway.app/api/auth/facebook/data-deletion
+
+เมื่อ User ลบ App จาก Facebook Settings หรือขอลบข้อมูล:
+1. Facebook POST มาที่ endpoint นี้
+2. Backend ต้อง:
+   - ลบ Page Token ของ user
+   - ลบ conversations/messages ที่เกี่ยวข้อง
+   - Return JSON:
+     {
+       "url": "https://tobtanai.areazeroai.com/data-deletion?id=xxx",
+       "confirmation_code": "xxx"
+     }
+3. URL ที่ return ต้องแสดงสถานะการลบให้ user ตรวจสอบได้
+
+
+================================================================================
+10. OAuth Flow ที่ต้องพัฒนา (Technical — สำหรับ Dev Team)
+================================================================================
+
+────────────────────────────────────────
+10.1 User กดเชื่อมต่อ → Redirect ไป Facebook
+────────────────────────────────────────
+
+GET https://www.facebook.com/v25.0/dialog/oauth?
+  client_id={FACEBOOK_APP_ID}
+  &redirect_uri={CALLBACK_URL}
+  &scope=pages_show_list,pages_messaging,pages_manage_metadata,
+         pages_read_engagement,instagram_basic,instagram_manage_messages
+  &response_type=code
+  &state={bot_id}:{random_csrf_token}
+
+────────────────────────────────────────
+10.2 Facebook Redirect กลับ → Exchange Code เป็น Token
+────────────────────────────────────────
+
+GET https://graph.facebook.com/v25.0/oauth/access_token?
+  client_id={FACEBOOK_APP_ID}
+  &client_secret={FACEBOOK_APP_SECRET}
+  &redirect_uri={CALLBACK_URL}
+  &code={CODE_FROM_FACEBOOK}
+
+→ ได้ short-lived user access token (~1-2 ชั่วโมง)
+
+────────────────────────────────────────
+10.3 แลกเป็น Long-lived Token
+────────────────────────────────────────
+
+GET https://graph.facebook.com/v25.0/oauth/access_token?
+  grant_type=fb_exchange_token
+  &client_id={FACEBOOK_APP_ID}
+  &client_secret={FACEBOOK_APP_SECRET}
+  &fb_exchange_token={SHORT_LIVED_TOKEN}
+
+→ ได้ long-lived user token (~60 วัน)
+
+────────────────────────────────────────
+10.4 ดึงรายชื่อ Pages
+────────────────────────────────────────
+
+GET https://graph.facebook.com/v25.0/me/accounts?
+  access_token={LONG_LIVED_USER_TOKEN}
+
+→ ได้ list ของ Pages + Page Access Token (แต่ละ Page)
+→ แสดงให้ User เลือก Page
+
+*** Page Access Token ที่ได้จาก long-lived user token ***
+*** จะเป็น permanent token — ไม่หมดอายุ! ***
+
+────────────────────────────────────────
+10.5 Subscribe Webhook
+────────────────────────────────────────
+
+POST https://graph.facebook.com/v25.0/{PAGE_ID}/subscribed_apps?
+  subscribed_fields=messages,messaging_postbacks,messaging_optins,
+                    messaging_referrals,message_reads,message_deliveries
+  &access_token={PAGE_ACCESS_TOKEN}
+
+────────────────────────────────────────
+10.6 ดึง Instagram Business Account (ถ้าเชื่อม IG ด้วย)
+────────────────────────────────────────
+
+GET https://graph.facebook.com/v25.0/{PAGE_ID}?
+  fields=instagram_business_account
+  &access_token={PAGE_ACCESS_TOKEN}
+
+→ ได้ Instagram Account ID
+→ Subscribe IG webhook ด้วย fields: messages,messaging_seen,
+   messaging_postbacks,messaging_referral
+
+────────────────────────────────────────
+10.7 บันทึกลง Database
+────────────────────────────────────────
+
+บันทึกใน bots table:
+  - fb_page_id = {PAGE_ID}
+  - fb_page_token = {PAGE_ACCESS_TOKEN} ← permanent
+  - fb_app_secret = (ใช้ global ของ TobTan ไม่ต้องเก็บต่อ bot)
+  - instagram_account_id = {IG_ID}
+
+────────────────────────────────────────
+10.8 Backend Endpoints ที่ต้องสร้างใหม่
+────────────────────────────────────────
+
+GET  /api/auth/facebook/connect?bot_id=xxx
+     → สร้าง OAuth URL + state token → redirect
+
+GET  /api/auth/facebook/callback?code=xxx&state=xxx
+     → Exchange code → long-lived token → ดึง pages
+     → return page list ให้ frontend แสดง
+
+POST /api/auth/facebook/select-page
+     → { bot_id, page_id }
+     → Subscribe webhook → บันทึก token → return success
+
+POST /api/auth/facebook/disconnect
+     → { bot_id }
+     → Unsubscribe webhook → ลบ tokens
+
+POST /api/auth/facebook/data-deletion
+     → รับ signed request จาก Facebook → ลบข้อมูล
+
+GET  /api/auth/facebook/status?bot_id=xxx
+     → return { connected: true/false, page_name, page_id }
+
+────────────────────────────────────────
+10.9 Environment Variables ที่ต้องเพิ่มใน Railway
+────────────────────────────────────────
+
+FACEBOOK_APP_ID=xxxxxxxxxxxxxxxxx
+FACEBOOK_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FACEBOOK_VERIFY_TOKEN=random-string-for-webhook-verify
+
+
+================================================================================
+11. Token Management
+================================================================================
+
+┌──────────────────┬──────────────┬─────────────────────┐
+│ Token Type       │ อายุ         │ หมายเหตุ             │
+├──────────────────┼──────────────┼─────────────────────┤
+│ Short-lived      │ ~1-2 ชั่วโมง │ ได้จาก OAuth code   │
+│ User Token       │              │ exchange ครั้งแรก   │
+├──────────────────┼──────────────┼─────────────────────┤
+│ Long-lived       │ ~60 วัน      │ แลกจาก short-lived  │
+│ User Token       │              │ ใช้ดึง pages        │
+├──────────────────┼──────────────┼─────────────────────┤
+│ Page Access      │ ไม่หมดอายุ   │ ได้จากการเรียก      │
+│ Token            │ (permanent)  │ me/accounts ด้วย    │
+│                  │              │ long-lived user token│
+│                  │              │ *** เก็บอันนี้! ***  │
+└──────────────────┴──────────────┴─────────────────────┘
+
+*** Page Token ที่ได้จาก long-lived user token จะเป็น permanent ***
+*** แต่จะถูก revoke ถ้า: ***
+    • User เปลี่ยนรหัสผ่าน Facebook
+    • User ลบ App จาก Settings
+    • User ถูกลบจาก Page
+    • App ถูก suspend โดย Meta
+
+
+================================================================================
+12. Webhook Configuration
+================================================================================
+
+────────────────────────────────────────
+12.1 Messenger Webhook Fields (เลือกที่ต้องการ)
+────────────────────────────────────────
+
+★ จำเป็น:
+  messages             - ข้อความจากลูกค้า
+  messaging_postbacks  - กดปุ่ม menu/quick reply
+
+แนะนำ:
+  messaging_optins     - opt-in events
+  messaging_referrals  - m.me link referrals
+  message_reads        - อ่านแล้ว/ยังไม่อ่าน
+  message_deliveries   - ส่งถึงแล้ว
+  messaging_handovers  - handover protocol
+
+Optional:
+  message_echoes       - echo ข้อความที่ bot ส่ง
+  message_reactions    - reactions
+  message_edits        - แก้ไขข้อความ
+  messaging_feedback   - feedback
+
+────────────────────────────────────────
+12.2 Instagram Webhook Fields
+────────────────────────────────────────
+
+★ จำเป็น:
+  messages             - DM จากลูกค้า (รวม is_echo)
+  messaging_postbacks  - icebreaker / template buttons
+
+แนะนำ:
+  messaging_seen       - อ่านแล้ว (*** IG ใช้ messaging_seen ***
+                         *** ไม่ใช่ message_reads เหมือน Messenger ***)
+  messaging_referral   - ig.me links
+
+
+================================================================================
+13. Data Use Checkup (ทำทุกปี)
+================================================================================
+
+*** Meta บังคับทำทุกปีสำหรับ App ที่มี Advanced Access ***
+
+เมื่อไหร่: Meta จะแจ้งทาง email + notification ใน App Dashboard
+deadline: ปกติ 30-60 วันหลังแจ้ง
+
+ต้องทำอะไร:
+1. Review permissions ที่ได้รับอนุมัติ
+2. ยืนยันว่ายังใช้งานอยู่
+3. ตอบคำถามเกี่ยวกับการใช้ข้อมูล
+4. ยืนยัน compliance กับ Meta Platform Terms
+5. ให้ testing instructions ใหม่ (ถ้า flow เปลี่ยน)
+
+*** ถ้าไม่ทำ: Meta จะ revoke API access! ***
+
+แนะนำ: ตั้ง calendar reminder ทุก 11 เดือน
+        ผู้รับผิดชอบ: [ใส่ชื่อคนในทีม]
+
+
+================================================================================
+14. Checklist สรุป — ก่อนเปิดให้ User ใช้งาน
+================================================================================
+
+Phase 1: เตรียมการ
+[ ] สร้าง Meta Business Account
+[ ] ยื่น Business Verification + อัพโหลดเอกสาร
+[ ] สร้าง Facebook App (use case: Messenger + IG Messaging)
+[ ] เตรียม Privacy Policy URL
+[ ] เตรียม Terms of Service URL
+[ ] ตั้งค่า OAuth Redirect URIs
+[ ] อัพโหลด App Icon
+
+Phase 2: พัฒนา
+[ ] สร้าง OAuth endpoints ทั้ง 6 ตัว (connect, callback,
+    select-page, disconnect, data-deletion, status)
+[ ] สร้าง Webhook endpoint (verify + receive)
+[ ] สร้าง Frontend UI ปุ่มเชื่อมต่อ + เลือก Page
+[ ] พัฒนา Token exchange flow
+[ ] พัฒนา Data Deletion endpoint
+[ ] เพิ่ม env vars ใน Railway
+
+Phase 3: ทดสอบ (Development Mode)
+[ ] สร้าง Test User + Test Page + Test IG Account
+[ ] ทดสอบ OAuth flow ครบ
+[ ] ทดสอบ webhook รับ/ส่งข้อความ
+[ ] ทดสอบ handoff (admin reply ผ่าน dashboard)
+[ ] ทดสอบ disconnect flow
+[ ] ทดสอบ data deletion flow
+
+Phase 4: ยื่น App Review
+[ ] ถ่าย Screencast video ทุก permission
+[ ] เขียนคำอธิบาย (ภาษาอังกฤษ) ทุก permission
+[ ] เตรียม Test account credentials
+[ ] เขียน Step-by-step instructions
+[ ] Submit App Review
+[ ] รอผล (1-5 วันทำการ)
+[ ] แก้ไขตาม feedback (ถ้ามี) → resubmit
+
+Phase 5: Go Live
+[ ] App Review ผ่าน ✓
+[ ] Switch App Mode: Development → Live
+[ ] ทดสอบกับ real Facebook account
+[ ] ทดสอบกับ real Instagram account
+[ ] Deploy production
+[ ] ประกาศให้ User ทราบว่าเชื่อมต่อ FB/IG ได้แล้ว
+
+Phase 6: บำรุงรักษา (ต่อเนื่อง)
+[ ] ทำ Data Use Checkup ทุกปี
+[ ] Monitor Graph API version deprecation
+[ ] Monitor token revocation
+[ ] อัพเดต Privacy Policy ตาม policy changes
+
+
+================================================================================
+15. Timeline โดยประมาณ
+================================================================================
+
+สัปดาห์ที่ 1:
+  • สร้าง Meta Business Account + Facebook App
+  • ยื่น Business Verification
+  • เตรียม Privacy Policy + Terms
+  • เตรียม Data Deletion endpoint
+
+สัปดาห์ที่ 2-3:
+  • พัฒนา OAuth flow (backend endpoints + frontend UI)
+  • พัฒนา Webhook handlers
+  • ทดสอบกับ Test Users ใน Development Mode
+
+สัปดาห์ที่ 3-4:
+  • ถ่าย Screencast videos
+  • เขียนคำอธิบายทุก permission
+  • ยื่น App Review
+
+สัปดาห์ที่ 4-5:
+  • รอผล App Review (1-5 วันทำการ)
+  • แก้ไขตาม feedback (ถ้ามี)
+  • Resubmit (ถ้าจำเป็น)
+
+สัปดาห์ที่ 5-6:
+  • Switch to Live Mode
+  • ทดสอบกับ real users
+  • Deploy production
+  • เปิดให้ User ใช้งาน
+
+
+================================================================================
+หมายเหตุสำคัญ
+================================================================================
+
+1. Graph API Version: ใช้ v25.0 (ล่าสุด 2026) ไม่ใช่ v19.0
+
+2. scope เก่าที่ deprecated (ม.ค. 2025):
+   ❌ business_manage_messages → ใช้ instagram_business_manage_messages แทน
+
+3. App Type เก่าที่ไม่มีแล้ว:
+   ❌ "Business" type → ใช้ Use Case model แทน
+
+4. Facebook Login for Business:
+   เป็น product แยกจาก Facebook Login ปกติ
+   ออกแบบมาสำหรับ B2B (เหมาะกับ TobTan)
+   ศึกษาเพิ่มเติมที่ developers.facebook.com
+
+5. IG Account ที่ใช้ได้:
+   ต้องเป็น Instagram Business หรือ Creator account เท่านั้น
+   Instagram Personal account ใช้ API ไม่ได้
+
+================================================================================
+เอกสารนี้จัดทำโดย: TobTan / AreaZero AI Dev Team
+วันที่: 17 เมษายน 2569 (2026)
+อัพเดตล่าสุด: 17 เมษายน 2569
+ผู้รับผิดชอบ: [ใส่ชื่อ]
+================================================================================

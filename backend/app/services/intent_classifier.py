@@ -19,7 +19,7 @@ _DIRECT_RE = re.compile(
     r"บาย|ลาก่อน|ลาแล้ว|แล้วเจอกัน|goodbye|bye\b|"                   # farewells
     r"โอเค|โอเคค่ะ|โอเคครับ|okay|ok\b|"                              # acknowledgements
     r"ใช่|ใช่ค่ะ|ใช่ครับ|ได้เลย|เข้าใจแล้ว"                         # simple confirms
-    r")",
+    r")$",
     re.IGNORECASE,
 )
 

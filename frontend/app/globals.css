@@ -725,6 +725,20 @@ textarea.input {
 .mobile-bottom-nav button.active {
   color: #4f46e5;
 }
+.mobile-bottom-nav .mobile-nav-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #9ca3af;
+  font-size: 9px;
+  font-weight: 500;
+  padding: 4px 12px;
+  text-decoration: none;
+}
+.mobile-bottom-nav .mobile-nav-link.active {
+  color: #4f46e5;
+}
 
 /* ── Mobile (<768px) ─── */
 @media (max-width: 767px) {
@@ -745,6 +759,7 @@ textarea.input {
 
   /* Add bottom padding for bottom nav */
   .chat-panel.mobile-visible { padding-bottom: 56px; }
+  .detail-panel.mobile-visible { padding-bottom: 56px; }
 }
 
 /* ── Tablet (768-1023px) ─── */

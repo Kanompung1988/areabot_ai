@@ -60,14 +60,12 @@ export default function DashboardLayout({
                 ? pathname === "/dashboard"
                 : pathname.startsWith(href);
             return (
-              <Link key={href} href={href} title={label}>
-                <button
-                  className={clsx("icon-sidebar-btn", active && "active")}
-                  aria-label={label}
-                >
+              <Link key={href} href={href} title={label}
+                className={clsx("icon-sidebar-btn", active && "active")}
+                aria-label={label}
+              >
                   <Icon size={18} strokeWidth={1.8} />
                   <span>{label}</span>
-                </button>
               </Link>
             );
           })}
@@ -75,17 +73,15 @@ export default function DashboardLayout({
 
         {/* Bottom: settings + avatar */}
         <div className="flex flex-col items-center gap-1 pb-2">
-          <Link href="/dashboard/bots" title="Bots">
-            <button
-              className={clsx(
-                "icon-sidebar-btn",
-                pathname.startsWith("/dashboard/bots") && "active",
-              )}
-              aria-label="Settings"
-            >
+          <Link href="/dashboard/bots" title="Bots"
+            className={clsx(
+              "icon-sidebar-btn",
+              pathname.startsWith("/dashboard/bots") && "active",
+            )}
+            aria-label="Settings"
+          >
               <Settings size={18} strokeWidth={1.8} />
               <span>ตั้งค่า</span>
-            </button>
           </Link>
           <button
             title={`${userName} — ออกจากระบบ`}
@@ -112,19 +108,17 @@ export default function DashboardLayout({
               ? pathname === "/dashboard"
               : pathname.startsWith(href);
           return (
-            <Link key={href} href={href}>
-              <button className={clsx(active && "active")} aria-label={label}>
+            <Link key={href} href={href}
+              className={clsx("mobile-nav-link", active && "active")} aria-label={label}>
                 <Icon size={20} strokeWidth={1.8} />
                 <span>{label}</span>
-              </button>
             </Link>
           );
         })}
-        <Link href="/dashboard/bots">
-          <button className={clsx(pathname.startsWith("/dashboard/bots") && "active")} aria-label="Settings">
+        <Link href="/dashboard/bots"
+          className={clsx("mobile-nav-link", pathname.startsWith("/dashboard/bots") && "active")} aria-label="Settings">
             <Settings size={20} strokeWidth={1.8} />
             <span>ตั้งค่า</span>
-          </button>
         </Link>
       </nav>
     </div>

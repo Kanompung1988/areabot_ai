@@ -26,8 +26,8 @@ try:
         sys.exit(1)   # existing full schema, no alembic → stamp 0001
     sys.exit(0)        # alembic already tracking → run upgrade head
 except Exception as e:
-    print(f"  DB check skipped: {e}")
-    sys.exit(0)
+    print(f"  WARNING: DB check failed: {e}")
+    sys.exit(3)
 EOF
 DB_STATE=$?
 set -e
@@ -47,6 +47,8 @@ EOF
 elif [ "$DB_STATE" = "1" ]; then
     echo "→ Existing schema (no alembic). Stamping 0001_initial..."
     alembic stamp 0001_initial
+elif [ "$DB_STATE" = "3" ]; then
+    echo "⚠ WARNING: DB check failed — attempting to continue anyway..."
 fi
 
 echo "→ Running remaining migrations..."
@@ -65,12 +67,22 @@ try:
     cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS rich_content JSONB")
     # conversations table — external_user_name for display
     cur.execute("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS external_user_name VARCHAR(255)")
-    # bots table — migrate old OpenAI model names to Gemini
+    # bots table — migrate old model names (only if needed)
     cur.execute("""
-        UPDATE bots SET model_name = 'typhoon-v2.5-30b-a3b-instruct'
+        SELECT COUNT(*) FROM bots
         WHERE model_name NOT IN ('typhoon-v2.5-30b-a3b-instruct','gemini-3-flash-preview')
-          OR model_name IS NULL
+          AND model_name IS NOT NULL
     """)
+    migrate_count = cur.fetchone()[0]
+    if migrate_count > 0:
+        cur.execute("""
+            UPDATE bots SET model_name = 'typhoon-v2.5-30b-a3b-instruct'
+            WHERE model_name NOT IN ('typhoon-v2.5-30b-a3b-instruct','gemini-3-flash-preview')
+              OR model_name IS NULL
+        """)
+        print(f"  Migrated {migrate_count} bots to default model")
+    else:
+        print("  No bots need model migration")
     # knowledge_chunks — migrate from OpenAI 1536-dim to Gemini 768-dim (run once)
     cur.execute("""
         DO $$

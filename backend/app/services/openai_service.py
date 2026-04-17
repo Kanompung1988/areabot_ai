@@ -110,7 +110,7 @@ async def _chat_typhoon(
         "max_completion_tokens": max_tokens,
         "temperature": temperature,
     }
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=90) as client:
         r = await client.post(
             f"{settings.TYPHOON_BASE_URL}/chat/completions",
             json=payload,
@@ -118,7 +118,10 @@ async def _chat_typhoon(
         )
         r.raise_for_status()
         data = r.json()
-    text = data["choices"][0]["message"]["content"] or ""
+    choices = data.get("choices", [])
+    if not choices:
+        return "", 0
+    text = (choices[0].get("message", {}).get("content") or "")
     tokens = data.get("usage", {}).get("total_tokens", 0)
     return text, tokens
 
@@ -177,6 +180,8 @@ async def chat_with_openai_vision(
     """
     import base64 as b64lib
     model = _resolve_model(model)
+    if model in _TYPHOON_MODELS:
+        model = "gemini-3-flash-preview"  # Typhoon doesn't support vision
     client = _get_client(api_key)
 
     last_text = (
@@ -224,6 +229,8 @@ async def chat_with_openai_stream(
     Gemini streaming — yields SSE-formatted strings.
     """
     model = _resolve_model(model)
+    if model in _TYPHOON_MODELS:
+        model = "gemini-3-flash-preview"  # Typhoon doesn't support streaming via Gemini SDK
     client = _get_client(api_key)
     contents = _build_contents(messages)
 

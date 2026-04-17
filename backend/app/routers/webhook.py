@@ -58,6 +58,8 @@ async def line_webhook(bot_id: str, request: Request, db: Session = Depends(get_
         expected_b64 = base64.b64encode(expected).decode("utf-8")
         if not hmac.compare_digest(signature, expected_b64):
             raise HTTPException(status_code=400, detail="Invalid signature")
+    else:
+        raise HTTPException(403, "Webhook signature verification not configured")
 
     data = json.loads(body_text)
     events = data.get("events", [])
@@ -276,6 +278,8 @@ async def fb_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
         ).hexdigest()
         if not hmac.compare_digest(sig_header, expected):
             raise HTTPException(status_code=400, detail="Invalid Facebook signature")
+    else:
+        raise HTTPException(403, "Webhook signature verification not configured")
 
     data = json.loads(body_bytes)
     if data.get("object") != "page":
@@ -455,6 +459,8 @@ async def ig_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
         ).hexdigest()
         if not hmac.compare_digest(sig_header, expected):
             raise HTTPException(status_code=400, detail="Invalid Instagram signature")
+    else:
+        raise HTTPException(403, "Webhook signature verification not configured")
 
     data = json.loads(body_bytes)
     if data.get("object") != "instagram":
@@ -601,6 +607,18 @@ async def _ig_send(access_token: str, recipient_id: str, text: str):
 
 async def _download_image_from_url(url: str) -> tuple[str, str]:
     """Download image from URL. Returns (base64_string, mime_type)."""
+    from urllib.parse import urlparse
+    import ipaddress
+    parsed = urlparse(url)
+    if parsed.scheme not in ("https", "http") or not parsed.hostname:
+        return None
+    # Block private IPs
+    try:
+        ip = ipaddress.ip_address(parsed.hostname)
+        if ip.is_private or ip.is_loopback:
+            return None
+    except ValueError:
+        pass  # hostname is a domain name, not IP — OK
     async with httpx.AsyncClient() as client:
         response = await client.get(url, timeout=30, follow_redirects=True)
         response.raise_for_status()
@@ -609,6 +627,8 @@ async def _download_image_from_url(url: str) -> tuple[str, str]:
 
 
 async def _fb_send(page_token: str, recipient_id: str, text: str):
+    # Note: access_token in query string is required by Facebook Graph API.
+    # This means the token may appear in server logs. Use short-lived tokens where possible.
     async with httpx.AsyncClient() as client:
         await client.post(
             f"https://graph.facebook.com/v18.0/me/messages?access_token={page_token}",
@@ -726,10 +746,13 @@ def _check_handoff(
         return False
 
     keywords = (bot.handoff_keywords or "").split(",")
+    keywords = [kw.strip().lower() for kw in keywords if kw.strip()]
+    if not keywords:
+        return False
     text_lower = user_text.lower().strip()
 
     for kw in keywords:
-        if kw.strip().lower() in text_lower:
+        if kw in text_lower:
             convo.is_handoff = True
             db.add(models.Message(conversation_id=convo.id, role="user", content=user_text))
             db.add(models.Message(

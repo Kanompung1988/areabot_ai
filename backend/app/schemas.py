@@ -1,5 +1,5 @@
 from datetime import datetime, date, time
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
@@ -162,9 +162,17 @@ class BotOut(BaseModel):
 
     @model_validator(mode="after")
     def mask_sensitive_keys(self) -> "BotOut":
-        """Mask openai_api_key — return only last 4 chars with *** prefix."""
+        """Mask sensitive keys — return only last 4 chars with *** prefix."""
         if self.openai_api_key:
             self.openai_api_key = f"***{self.openai_api_key[-4:]}"
+        if self.line_channel_secret:
+            self.line_channel_secret = f"***{self.line_channel_secret[-4:]}"
+        if self.line_channel_access_token:
+            self.line_channel_access_token = f"***{self.line_channel_access_token[-4:]}"
+        if self.fb_page_token:
+            self.fb_page_token = f"***{self.fb_page_token[-4:]}"
+        if self.instagram_access_token:
+            self.instagram_access_token = f"***{self.instagram_access_token[-4:]}"
         return self
 
     class Config:
@@ -207,12 +215,12 @@ class ConversationDetail(ConversationOut):
 
 # ── OpenAI Proxy ──────────────────────────────────────
 class ChatMessage(BaseModel):
-    role: str
+    role: Literal["user", "assistant", "system"]
     content: str
 
 
 class AdminReplyBody(BaseModel):
-    content: str
+    content: str = Field(min_length=1)
 
 
 class ChatCompletionRequest(BaseModel):

@@ -1,7 +1,9 @@
 import logging
+import os
 import structlog
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
@@ -39,6 +41,8 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.SECRET_KEY == "change-this-in-production-min-32-chars-long":
+        logger.warning("WARNING: Using default SECRET_KEY! Set SECRET_KEY env var in production!")
     logger.info("Starting AreaBot API", version="2.0.0")
     init_db()
     yield
@@ -57,15 +61,18 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ── CORS ──────────────────────────────────────────────
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        settings.FRONTEND_URL,
+origins = [settings.FRONTEND_URL]
+if os.getenv("DEBUG", "").lower() in ("1", "true"):
+    origins.extend([
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:3002",
         "http://localhost:3003",
-    ],
+    ])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -90,6 +97,8 @@ async def log_requests(request: Request, call_next):
             status=response.status_code,
         )
         return response
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("request_failed", path=request.url.path, error=str(e))
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})

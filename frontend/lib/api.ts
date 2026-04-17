@@ -81,9 +81,7 @@ export const knowledgeApi = {
   upload: (botId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return api.post(`/api/knowledge/bots/${botId}/upload`, form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    return api.post(`/api/knowledge/bots/${botId}/upload`, form);
   },
   crawl: (botId: string, url: string) =>
     api.post(`/api/knowledge/bots/${botId}/crawl`, { url }),

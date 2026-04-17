@@ -1,7 +1,9 @@
+import logging
 import secrets
 from google import genai
 from app.config import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # ── ประเภทธุรกิจที่ต้องการ Thai Clinic Guardrails (สบส./อย. compliance) ──
@@ -107,17 +109,18 @@ System Prompt ที่ต้องสร้างต้องมีครบท
 ส่ง System Prompt เท่านั้น ไม่ต้องอธิบายเพิ่มเติม"""
 
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model="gemini-3-flash-preview", contents=prompt
         )
-        result = response.text
+        generated = response.text or ""
 
-        if is_clinic:
-            result += _CLINIC_GUARDRAILS
+        if is_clinic and generated:
+            generated += _CLINIC_GUARDRAILS
 
-        return result
+        return generated if generated else _fallback_system_prompt(bot_data)
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"System prompt generation failed: {e}")
         return _fallback_system_prompt(bot_data)
 
 

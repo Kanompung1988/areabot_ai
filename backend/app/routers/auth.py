@@ -156,11 +156,20 @@ async def forgot_password(body: schemas.ForgotPasswordRequest, request: Request,
 
 
 @router.post("/test-email")
+@limiter.limit("3/minute")
 async def test_email(
     body: schemas.TestEmailRequest,
+    request: Request,
     current_user: models.User = Depends(get_current_user),
 ):
-    """Send a test email using custom SMTP credentials provided by the user."""
+    """Send a test email using custom SMTP credentials provided by the user.
+
+    Security notes:
+    - Rate limited to 3/minute to prevent abuse
+    - Requires authentication
+    - User-controlled SMTP host: this endpoint allows connecting to arbitrary SMTP servers.
+      Consider restricting to a whitelist of allowed SMTP hosts in production.
+    """
     import aiosmtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart

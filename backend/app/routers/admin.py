@@ -336,4 +336,4 @@ async def conversation_summary(
         return {"summary": text}
     except Exception as e:
         logger.error(f"AI Summary failed: {e}")
-        return {"summary": f"ไม่สามารถสรุปได้: {e}"}
+        return {"summary": "ไม่สามารถสรุปได้ กรุณาลองใหม่อีกครั้ง"}

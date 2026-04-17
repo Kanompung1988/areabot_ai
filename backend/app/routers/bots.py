@@ -35,7 +35,11 @@ def _generate_prompt_background(bot_id: str, bot_data: dict):
         finally:
             db.close()
 
-    asyncio.run(_run())
+    try:
+        loop = asyncio.get_running_loop()
+        asyncio.ensure_future(_run())
+    except RuntimeError:
+        asyncio.run(_run())
 
 
 @router.get("", response_model=List[schemas.BotOut])

@@ -65,6 +65,7 @@ export default function BotDetailPage() {
     try {
       const res = await botsApi.update(id, editData);
       setBot(res.data);
+      setEditData(res.data);
       toast.success("บันทึกแล้ว");
     } catch {
       toast.error("บันทึกไม่สำเร็จ");
