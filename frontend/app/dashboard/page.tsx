@@ -288,6 +288,8 @@ export default function InboxPage() {
       const data = r.data;
       setActiveConvo(data.conversation ?? data);
       setMessages(data.messages ?? []);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "ส่งข้อความไม่สำเร็จ");
     } finally { setSending(false); }
   };
 
