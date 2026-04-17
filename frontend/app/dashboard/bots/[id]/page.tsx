@@ -567,9 +567,6 @@ function IntegrationTab({ data, update, botId, backendUrl }: any) {
           >
             <optgroup label="🇹🇭 Typhoon (ภาษาไทยดีที่สุด)">
               <option value="typhoon-v2.5-30b-a3b-instruct">Typhoon V2.5 30B (แนะนำ)</option>
-              <option value="typhoon-v2-70b-instruct">Typhoon V2 70B (ละเอียด)</option>
-              <option value="typhoon-v2-8b-instruct">Typhoon V2 8B (เร็ว/ถูก)</option>
-              <option value="typhoon-v2-r1-70b">Typhoon V2 R1 70B (Reasoning)</option>
             </optgroup>
             <optgroup label="✨ Gemini (Google)">
               <option value="gemini-2.0-flash">Gemini 2.0 Flash (แนะนำ)</option>

@@ -48,24 +48,6 @@ AVAILABLE_MODELS = {
         "cost_per_1k_tokens": 0.00012,
         "description": "โมเดลไทยจาก SCB10X เหมาะกับงานคลินิก/ธุรกิจไทย",
     },
-    "typhoon-v2-70b-instruct": {
-        "provider": "typhoon",
-        "name": "Typhoon V2 70B",
-        "cost_per_1k_tokens": 0.00018,
-        "description": "ขนาดใหญ่ — ตอบละเอียดกว่า",
-    },
-    "typhoon-v2-8b-instruct": {
-        "provider": "typhoon",
-        "name": "Typhoon V2 8B (เร็ว/ถูก)",
-        "cost_per_1k_tokens": 0.00003,
-        "description": "เล็ก เร็ว ราคาถูก",
-    },
-    "typhoon-v2-r1-70b": {
-        "provider": "typhoon",
-        "name": "Typhoon V2 R1 70B (Reasoning)",
-        "cost_per_1k_tokens": 0.0003,
-        "description": "โมเดล reasoning — วิเคราะห์เชิงลึก",
-    },
 }
 
 # Map legacy OpenAI model names → Gemini equivalents
