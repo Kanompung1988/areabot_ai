@@ -1,5 +1,5 @@
 import secrets
-import google.generativeai as genai
+from google import genai
 from app.config import get_settings
 
 settings = get_settings()
@@ -47,9 +47,6 @@ async def generate_system_prompt(bot_data: dict) -> str:
         return _fallback_system_prompt(bot_data)
 
     try:
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
-
         lang = bot_data.get('response_language', 'ไทย')
         bot_name = bot_data.get('bot_name', 'น้องบอท')
         personality = bot_data.get('bot_personality', 'ร่าเริง ใจดี พูดจาเป็นกันเอง')
@@ -109,7 +106,10 @@ System Prompt ที่ต้องสร้างต้องมีครบท
 {clinic_section}
 ส่ง System Prompt เท่านั้น ไม่ต้องอธิบายเพิ่มเติม"""
 
-        response = model.generate_content(prompt)
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL, contents=prompt
+        )
         result = response.text
 
         if is_clinic:

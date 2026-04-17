@@ -300,6 +300,8 @@ async def fb_webhook(bot_id: str, request: Request, db: Session = Depends(get_db
                 convo = _get_or_create_convo(
                     bot.id, models.PlatformEnum.FACEBOOK, sender_id, db
                 )
+                try:
+                    image_base64, image_mime = await _download_image_from_url(image_url)
                     history = _get_history(convo.id, db)
                     db.add(models.Message(
                         conversation_id=convo.id, role="user", content="[ส่งรูปภาพ]"
