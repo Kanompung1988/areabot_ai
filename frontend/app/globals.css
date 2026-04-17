@@ -655,18 +655,20 @@ textarea.input {
 .bubble-in {
   background: #f3f4f6;
   color: #111827;
-  border-radius: 4px 16px 16px 16px;
-  padding: 0.6rem 0.9rem;
+  border-radius: 16px 16px 16px 4px;
+  padding: 0.5rem 0.85rem;
   font-size: 0.875rem;
   max-width: 75%;
+  line-height: 1.5;
 }
 .bubble-out {
   background: #4f46e5;
   color: #ffffff;
-  border-radius: 16px 4px 16px 16px;
-  padding: 0.6rem 0.9rem;
+  border-radius: 16px 16px 4px 16px;
+  padding: 0.5rem 0.85rem;
   font-size: 0.875rem;
   max-width: 75%;
+  line-height: 1.5;
 }
 
 /* ─── Section header ─────────────────────────────────────────────── */
