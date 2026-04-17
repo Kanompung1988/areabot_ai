@@ -15,11 +15,15 @@ try:
     has_alembic = cur.fetchone()[0]
     cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='users')")
     has_users = cur.fetchone()[0]
+    cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='knowledge_chunks')")
+    has_knowledge_chunks = cur.fetchone()[0]
     conn.close()
     if not has_users and not has_alembic:
         sys.exit(2)   # fresh DB → use create_all
+    if has_users and not has_alembic and not has_knowledge_chunks:
+        sys.exit(2)   # partial schema (crashed 0001) → recreate via create_all
     if has_users and not has_alembic:
-        sys.exit(1)   # existing schema, no alembic → stamp 0001
+        sys.exit(1)   # existing full schema, no alembic → stamp 0001
     sys.exit(0)        # alembic already tracking → run upgrade head
 except Exception as e:
     print(f"  DB check skipped: {e}")
