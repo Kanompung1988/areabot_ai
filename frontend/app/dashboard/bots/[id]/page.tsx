@@ -21,7 +21,7 @@ import {
   Megaphone,
   Share2,
   Mail,
-  Radio,
+
   Store,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -162,20 +162,8 @@ export default function BotDetailPage() {
             href={`/dashboard/bots/${id}/channels`}
             className="btn btn-ghost text-sm flex items-center gap-2 py-2 px-3"
           >
-            <Radio size={15} /> Channels
-          </Link>{" "}
-          <Link
-            href={`/dashboard/bots/${id}/channels`}
-            className="btn btn-ghost text-sm flex items-center gap-2 py-2 px-3"
-          >
             <Share2 size={15} /> Channels
           </Link>
-          <Link
-            href={`/dashboard/bots/${id}/email`}
-            className="btn btn-ghost text-sm flex items-center gap-2 py-2 px-3"
-          >
-            <Mail size={15} /> Email
-          </Link>{" "}
           <Link
             href={`/dashboard/bots/${id}/email`}
             className="btn btn-ghost text-sm flex items-center gap-2 py-2 px-3"
