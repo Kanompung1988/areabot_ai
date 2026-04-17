@@ -13,7 +13,7 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "typhoon-v2.5-30b-a3b-instruct"
 
 AVAILABLE_MODELS = {
     # ── Gemini ──────────────────────────────────────────

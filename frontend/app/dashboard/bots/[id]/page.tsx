@@ -544,7 +544,7 @@ function IntegrationTab({ data, update, botId, backendUrl }: any) {
           <div className="flex gap-3">
             <span className="text-gray-400 w-28 flex-shrink-0">Model:</span>
             <code className="text-gray-700 text-xs">
-              {data.model_name || "gpt-4.1-mini"}
+              {data.model_name || "typhoon-v2.5-30b-a3b-instruct"}
             </code>
           </div>
         </div>
@@ -562,7 +562,7 @@ function IntegrationTab({ data, update, botId, backendUrl }: any) {
         <Field label="AI Model">
           <select
             className="input"
-            value={data.model_name || "gemini-2.0-flash"}
+            value={data.model_name || "typhoon-v2.5-30b-a3b-instruct"}
             onChange={(e) => update("model_name", e.target.value)}
           >
             <optgroup label="🇹🇭 Typhoon (ภาษาไทยดีที่สุด)">
