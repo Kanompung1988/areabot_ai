@@ -1,16 +1,10 @@
 """
-Intent Classifier — Hybrid rule-based + LLM fallback
-ported from Tobtan-Clinic-AI and adapted for the TobTan-PipeLine async stack.
-
+Intent Classifier — Hybrid rule-based + Gemini LLM fallback
 Returns "RETRIEVE" (ต้องค้นหาจาก Knowledge Base) หรือ "DIRECT" (ตอบได้เลย)
-
-Strategy:
-- Fast-path: regex สำหรับกรณีที่ชัดเจน ~80% ของ traffic ไม่เสีย API call
-- Slow-path: เรียก Typhoon (หรือ OpenAI fallback) สำหรับกรณีกำกวม
 """
 import re
 import logging
-from openai import AsyncOpenAI
+from google import genai
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -98,28 +92,20 @@ async def classify_intent(user_message: str) -> str:
     if rule_result is not None:
         return rule_result
 
-    # LLM fallback for ambiguous messages
+    # Gemini LLM fallback for ambiguous messages
     try:
-        if settings.TYPHOON_API_KEY:
-            client = AsyncOpenAI(
-                api_key=settings.TYPHOON_API_KEY,
-                base_url=settings.TYPHOON_BASE_URL,
-            )
-            llm_model = settings.TYPHOON_MODEL
-        else:
-            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-            llm_model = "gpt-4.1-mini"
-
-        response = await client.chat.completions.create(
-            model=llm_model,
-            messages=[
-                {"role": "system", "content": _CLASSIFY_SYSTEM},
-                {"role": "user", "content": _CLASSIFY_PROMPT.format(user_message=user_message)},
-            ],
-            temperature=0,
-            max_tokens=5,
+        from google.genai import types
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        response = await client.aio.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[_CLASSIFY_PROMPT.format(user_message=user_message)],
+            config=types.GenerateContentConfig(
+                system_instruction=_CLASSIFY_SYSTEM,
+                temperature=0,
+                max_output_tokens=5,
+            ),
         )
-        result = (response.choices[0].message.content or "").strip().upper()
+        result = (response.text or "").strip().upper()
         return "RETRIEVE" if "RETRIEVE" in result else "DIRECT"
     except Exception as e:
         logger.warning(f"Intent classifier LLM call failed, defaulting to RETRIEVE: {e}")

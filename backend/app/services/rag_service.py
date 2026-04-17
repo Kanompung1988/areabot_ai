@@ -6,7 +6,7 @@ import io
 import logging
 from typing import Optional
 import yaml
-from openai import AsyncOpenAI
+from google import genai
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -18,7 +18,7 @@ settings = get_settings()
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
-EMBEDDING_DIMS = 1536  # text-embedding-3-small
+EMBEDDING_DIMS = 768  # Gemini text-embedding-004
 
 
 def chunk_text(content: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list[str]:
@@ -36,15 +36,15 @@ def chunk_text(content: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_
 
 
 async def generate_embeddings(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings using OpenAI text-embedding-3-small."""
+    """Generate embeddings using Gemini text-embedding-004 (768 dims)."""
     if not texts:
         return []
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    response = await client.embeddings.create(
-        model="text-embedding-3-small",
-        input=texts,
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    result = await client.aio.models.embed_content(
+        model="text-embedding-004",
+        contents=texts,
     )
-    return [item.embedding for item in response.data]
+    return [e.values for e in result.embeddings]
 
 
 async def process_document(doc_id: str, content: str, db: Session):

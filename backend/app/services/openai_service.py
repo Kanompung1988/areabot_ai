@@ -1,87 +1,49 @@
 """
-OpenAI service — Chatbot Engine (GPT-4.1-mini)
-#8  - Streaming support via SSE
-#11 - Multi-model support
-Vision - อ่านรูปภาพลูกค้าได้ (GPT-4.1-mini vision)
+Gemini service — Chatbot Engine (Gemini Flash)
+ทดแทน OpenAI ทั้งหมด: chat, vision, streaming
 """
 import json
 import logging
 from typing import AsyncGenerator
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import types
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Model registry (#11)
-# Default: gpt-4.1-mini — Chatbot Engine ตาม spec ใน AI_Chatbot_Summary
+DEFAULT_MODEL = "gemini-2.0-flash"
+
 AVAILABLE_MODELS = {
-    "gpt-4.1-mini": {
-        "provider": "openai",
-        "name": "GPT-4.1 Mini (แนะนำ)",
-        "cost_per_1k_tokens": 0.0004,
-        "description": "Chatbot Engine หลัก — ภาษาไทยดีมาก, Vision, latency ~0.5s",
+    "gemini-2.0-flash": {
+        "provider": "gemini",
+        "name": "Gemini 2.0 Flash (แนะนำ)",
+        "cost_per_1k_tokens": 0.0001,
+        "description": "เร็ว ถูก ภาษาไทยดี Vision รองรับ",
     },
-    "gpt-4.1": {
-        "provider": "openai",
-        "name": "GPT-4.1",
-        "cost_per_1k_tokens": 0.002,
-        "description": "รุ่นใหญ่กว่า — งาน complex หรือต้องการความแม่นยำสูง",
-    },
-    "gpt-4o": {
-        "provider": "openai",
-        "name": "GPT-4o",
-        "cost_per_1k_tokens": 0.005,
-        "description": "GPT-4o — Multimodal, รุ่น stable",
-    },
-    "gpt-4o-mini": {
-        "provider": "openai",
-        "name": "GPT-4o Mini",
+    "gemini-2.5-flash-preview-04-17": {
+        "provider": "gemini",
+        "name": "Gemini 2.5 Flash Preview",
         "cost_per_1k_tokens": 0.00015,
-        "description": "เร็วและถูก เหมาะกับบทสนทนาง่ายๆ",
+        "description": "รุ่นล่าสุด — คิดวิเคราะห์ดีกว่า",
     },
-    "gpt-3.5-turbo": {
-        "provider": "openai",
-        "name": "GPT-3.5 Turbo",
-        "cost_per_1k_tokens": 0.0005,
-        "description": "ราคาถูกที่สุด เหมาะกับ Q&A พื้นฐาน",
+    "gemini-1.5-flash": {
+        "provider": "gemini",
+        "name": "Gemini 1.5 Flash",
+        "cost_per_1k_tokens": 0.000075,
+        "description": "รุ่นเก่า — ถูกมาก",
     },
-    # ── Typhoon — Thai-optimized LLM (OpenAI-compatible API) ──
-    "typhoon-v2.5-30b-a3b-instruct": {
-        "provider": "typhoon",
-        "name": "Typhoon v2.5 30B (Thai แนะนำ)",
-        "cost_per_1k_tokens": 0.0002,
-        "description": "Typhoon — ภาษาไทยดีเยี่ยม, ถูกกว่า GPT, เหมาะสำหรับ Thai clinic/beauty bot",
-    },
-    "typhoon-v2-70b-instruct": {
-        "provider": "typhoon",
-        "name": "Typhoon v2 70B",
-        "cost_per_1k_tokens": 0.0004,
-        "description": "Typhoon ขนาดใหญ่ — สำหรับงานซับซ้อนภาษาไทย",
+    "gemini-1.5-pro": {
+        "provider": "gemini",
+        "name": "Gemini 1.5 Pro",
+        "cost_per_1k_tokens": 0.0035,
+        "description": "Pro รุ่นใหญ่ — งาน complex",
     },
 }
 
-DEFAULT_MODEL = "gpt-4.1-mini"
 
-
-def _resolve_key(bot_key: str | None) -> str:
-    """ใช้ per-bot key ถ้ามี มิฉะนั้น fallback ไปใช้ global key ใน .env"""
-    return bot_key or settings.OPENAI_API_KEY
-
-
-def _get_client(model: str = DEFAULT_MODEL, bot_key: str | None = None) -> AsyncOpenAI:
-    """Return the right AsyncOpenAI-compatible client based on model provider.
-
-    Typhoon uses an OpenAI-compatible API at a different base_url.
-    All other models go to the standard OpenAI API.
-    """
-    provider = AVAILABLE_MODELS.get(model, {}).get("provider", "openai")
-    if provider == "typhoon":
-        return AsyncOpenAI(
-            api_key=settings.TYPHOON_API_KEY or "not-configured",
-            base_url=settings.TYPHOON_BASE_URL,
-        )
-    return AsyncOpenAI(api_key=_resolve_key(bot_key))
+def _get_client(api_key: str | None = None) -> genai.Client:
+    return genai.Client(api_key=api_key or settings.GEMINI_API_KEY)
 
 
 async def chat_with_openai(
@@ -93,24 +55,31 @@ async def chat_with_openai(
     api_key: str | None = None,
 ) -> tuple[str, int]:
     """
-    Call OpenAI / Typhoon API (Chatbot Engine).
-    api_key: per-bot OpenAI key; ถ้าไม่ระบุใช้ global key ใน .env
-    Typhoon models ใช้ TYPHOON_API_KEY อัตโนมัติ
-    Returns (response_text, tokens_used).
+    Gemini chat — same signature as old OpenAI version for drop-in replacement.
+    api_key: per-bot Gemini key; ถ้าไม่ระบุใช้ global GEMINI_API_KEY
     """
-    client = _get_client(model, api_key)
-    full_messages = [{"role": "system", "content": system_prompt}] + messages
+    client = _get_client(api_key)
 
-    response = await client.chat.completions.create(
-        model=model,
-        messages=full_messages,
-        max_tokens=max_tokens,
+    contents = []
+    for m in messages:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append(types.Content(role=role, parts=[types.Part(text=m["content"])]))
+
+    config = types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        max_output_tokens=max_tokens,
         temperature=temperature,
     )
 
-    content = response.choices[0].message.content or ""
-    tokens = response.usage.total_tokens if response.usage else 0
-    return content, tokens
+    response = await client.aio.models.generate_content(
+        model=model,
+        contents=contents,
+        config=config,
+    )
+
+    text = response.text or ""
+    tokens = response.usage_metadata.total_token_count if response.usage_metadata else 0
+    return text, tokens
 
 
 async def chat_with_openai_vision(
@@ -124,57 +93,42 @@ async def chat_with_openai_vision(
     api_key: str | None = None,
 ) -> tuple[str, int]:
     """
-    Call OpenAI API with Vision — อ่านรูปภาพที่ลูกค้าส่งมา
-    image_base64: base64-encoded image string
-    image_mime: เช่น "image/jpeg", "image/png"
-    api_key: per-bot key; ถ้าไม่ระบุใช้ global key
-    หมายเหตุ: Typhoon ไม่รองรับ Vision — fallback ไป GPT-4.1-mini อัตโนมัติ
+    Gemini Vision — อ่านรูปภาพที่ลูกค้าส่งมา
     """
-    # Typhoon ไม่รองรับ vision — fallback ไป OpenAI
-    vision_model = DEFAULT_MODEL if AVAILABLE_MODELS.get(model, {}).get("provider") == "typhoon" else model
-    client = AsyncOpenAI(api_key=_resolve_key(api_key))
-    model = vision_model
+    import base64 as b64lib
+    client = _get_client(api_key)
 
-    # ใช้ history ก่อนหน้า + vision message สุดท้าย
-    prior_messages = messages[:-1] if len(messages) > 1 else []
-    last_user_text = (
+    last_text = (
         messages[-1].get("content", "ช่วยดูรูปนี้ให้หน่อยนะคะ")
         if messages else "ช่วยดูรูปนี้ให้หน่อยนะคะ"
     )
 
-    vision_message = {
-        "role": "user",
-        "content": [
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:{image_mime};base64,{image_base64}",
-                    "detail": "auto",
-                },
-            },
-            {
-                "type": "text",
-                "text": last_user_text,
-            },
-        ],
-    }
+    image_bytes = b64lib.b64decode(image_base64)
+    contents = [
+        types.Content(
+            role="user",
+            parts=[
+                types.Part(inline_data=types.Blob(mime_type=image_mime, data=image_bytes)),
+                types.Part(text=last_text),
+            ],
+        )
+    ]
 
-    full_messages = (
-        [{"role": "system", "content": system_prompt}]
-        + prior_messages
-        + [vision_message]
-    )
-
-    response = await client.chat.completions.create(
-        model=model,
-        messages=full_messages,
-        max_tokens=max_tokens,
+    config = types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        max_output_tokens=max_tokens,
         temperature=temperature,
     )
 
-    content = response.choices[0].message.content or ""
-    tokens = response.usage.total_tokens if response.usage else 0
-    return content, tokens
+    response = await client.aio.models.generate_content(
+        model=model,
+        contents=contents,
+        config=config,
+    )
+
+    text = response.text or ""
+    tokens = response.usage_metadata.total_token_count if response.usage_metadata else 0
+    return text, tokens
 
 
 async def chat_with_openai_stream(
@@ -186,33 +140,31 @@ async def chat_with_openai_stream(
     api_key: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
-    Stream chat completions using SSE (#8).
-    api_key: per-bot key; ถ้าไม่ระบุใช้ global key
-    Typhoon models ใช้ TYPHOON_API_KEY อัตโนมัติ
-    Yields Server-Sent Event formatted strings.
+    Gemini streaming — yields SSE-formatted strings.
     """
-    client = _get_client(model, api_key)
-    full_messages = [{"role": "system", "content": system_prompt}] + messages
+    client = _get_client(api_key)
 
-    stream = await client.chat.completions.create(
-        model=model,
-        messages=full_messages,
-        max_tokens=max_tokens,
+    contents = []
+    for m in messages:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append(types.Content(role=role, parts=[types.Part(text=m["content"])]))
+
+    config = types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        max_output_tokens=max_tokens,
         temperature=temperature,
-        stream=True,
     )
 
-    async for chunk in stream:
-        if chunk.choices and chunk.choices[0].delta.content:
-            content = chunk.choices[0].delta.content
+    async for chunk in client.aio.models.generate_content_stream(
+        model=model,
+        contents=contents,
+        config=config,
+    ):
+        if chunk.text:
             data = json.dumps({
-                "id": "chatcmpl-stream",
+                "id": "gemini-stream",
                 "object": "chat.completion.chunk",
-                "choices": [{
-                    "index": 0,
-                    "delta": {"content": content},
-                    "finish_reason": None,
-                }]
+                "choices": [{"index": 0, "delta": {"content": chunk.text}, "finish_reason": None}],
             })
             yield f"data: {data}\n\n"
 

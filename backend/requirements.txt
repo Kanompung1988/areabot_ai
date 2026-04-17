@@ -22,7 +22,6 @@ aiohttp>=3.11.0
 
 # ── AI APIs ───────────────────────────────────────────
 google-genai>=1.0.0
-openai>=1.58.0
 
 # ── Validation & Config ──────────────────────────────
 pydantic[email]>=2.10.0

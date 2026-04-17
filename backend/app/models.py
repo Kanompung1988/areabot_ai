@@ -188,8 +188,8 @@ class KnowledgeChunk(Base):
     document_id = Column(String(36), ForeignKey("knowledge_documents.id", ondelete="CASCADE"), nullable=False)
     content = Column(Text, nullable=False)
     chunk_index = Column(Integer, default=0)
-    # pgvector 1536-dim for text-embedding-3-small
-    embedding = Column(Vector(1536), nullable=True)
+    # pgvector 768-dim for Gemini text-embedding-004
+    embedding = Column(Vector(768), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     document = relationship("KnowledgeDocument", back_populates="chunks")

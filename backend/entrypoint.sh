@@ -65,6 +65,22 @@ try:
     cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS rich_content JSONB")
     # conversations table — external_user_name for display
     cur.execute("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS external_user_name VARCHAR(255)")
+    # knowledge_chunks — migrate from OpenAI 1536-dim to Gemini 768-dim (run once)
+    cur.execute("""
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_attribute
+            WHERE attrelid = 'knowledge_chunks'::regclass
+              AND attname = 'embedding'
+              AND atttypmod != 768
+          ) THEN
+            ALTER TABLE knowledge_chunks DROP COLUMN embedding;
+            ALTER TABLE knowledge_chunks ADD COLUMN embedding vector(768);
+            UPDATE knowledge_documents SET status='processing', chunk_count=0;
+          END IF;
+        END $$;
+    """)
     conn.commit()
     conn.close()
     print("  Schema columns verified.")

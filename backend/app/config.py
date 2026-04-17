@@ -14,8 +14,7 @@ class Settings(BaseSettings):
 
     # ── AI APIs ───────────────────────────────────────────
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash-preview-04-17"
-    OPENAI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
 
     # ── Typhoon AI (Thai-optimized LLM — OpenAI-compatible) ──
     TYPHOON_API_KEY: str = ""
