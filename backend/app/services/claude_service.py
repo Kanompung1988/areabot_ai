@@ -117,13 +117,15 @@ System Prompt ที่ต้องสร้างต้องมีครบท
 {clinic_section}
 ส่ง System Prompt เท่านั้น ไม่ต้องอธิบายเพิ่มเติม"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2000,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    result = message.content[0].text
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        result = message.content[0].text
+    except Exception:
+        return _fallback_system_prompt(bot_data)
 
     # Append runtime guardrails for clinic bots (enforced at every response, not just generation)
     if is_clinic:
