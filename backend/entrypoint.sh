@@ -2,10 +2,8 @@
 # Backend entrypoint — runs in production container
 set -e
 
-echo "→ Running database migrations..."
+echo "→ Checking database state..."
 
-# If the DB has tables from a pre-Alembic create_all() run but no alembic_version,
-# stamp migration 0001_initial as applied so only 0002+ will actually execute.
 set +e
 python - <<'EOF'
 import os, sys
@@ -18,21 +16,36 @@ try:
     cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='users')")
     has_users = cur.fetchone()[0]
     conn.close()
+    if not has_users and not has_alembic:
+        sys.exit(2)   # fresh DB → use create_all
     if has_users and not has_alembic:
-        print("  Existing schema detected (no alembic_version). Will stamp 0001_initial.")
-        sys.exit(1)
-    sys.exit(0)
+        sys.exit(1)   # existing schema, no alembic → stamp 0001
+    sys.exit(0)        # alembic already tracking → run upgrade head
 except Exception as e:
     print(f"  DB check skipped: {e}")
     sys.exit(0)
 EOF
-STAMP_NEEDED=$?
+DB_STATE=$?
 set -e
 
-if [ "$STAMP_NEEDED" = "1" ]; then
+if [ "$DB_STATE" = "2" ]; then
+    echo "→ Fresh database detected. Creating tables directly..."
+    python - <<'EOF'
+import sys
+sys.path.insert(0, '/app')
+from app.database import engine, Base
+from app.models import *  # noqa: F403 — loads all models
+Base.metadata.create_all(bind=engine)
+print("  All tables created.")
+EOF
+    echo "→ Stamping alembic at HEAD..."
+    alembic stamp head
+elif [ "$DB_STATE" = "1" ]; then
+    echo "→ Existing schema (no alembic). Stamping 0001_initial..."
     alembic stamp 0001_initial
 fi
 
+echo "→ Running remaining migrations..."
 alembic upgrade head
 
 echo "→ Starting AreaBot API..."
