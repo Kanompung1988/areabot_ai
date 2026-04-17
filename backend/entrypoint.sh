@@ -6,6 +6,7 @@ echo "→ Running database migrations..."
 
 # If the DB has tables from a pre-Alembic create_all() run but no alembic_version,
 # stamp migration 0001_initial as applied so only 0002+ will actually execute.
+set +e
 python - <<'EOF'
 import os, sys
 try:
@@ -26,6 +27,7 @@ except Exception as e:
     sys.exit(0)
 EOF
 STAMP_NEEDED=$?
+set -e
 
 if [ "$STAMP_NEEDED" = "1" ]; then
     alembic stamp 0001_initial
